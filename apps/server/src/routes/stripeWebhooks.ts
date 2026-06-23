@@ -1,15 +1,11 @@
+import crypto from 'node:crypto';
 import { Router } from 'express';
-import Stripe from 'stripe';
 import { UserModel, type SubscriptionTier } from '../models/User.js';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', {
-  apiVersion: '2026-05-27.dahlia',
-});
 
 export const stripeWebhooksRouter = Router();
 
-function getTier(subscription: Stripe.Subscription): SubscriptionTier {
-  const metadataTier = subscription.metadata.tier;
+function getTier(metadata: any): SubscriptionTier {
+  const metadataTier = metadata?.tier;
 
   if (metadataTier === 'premium' || metadataTier === 'team') {
     return metadataTier;
@@ -18,51 +14,57 @@ function getTier(subscription: Stripe.Subscription): SubscriptionTier {
   return 'premium';
 }
 
+// IMPORTANT: Paystack sends regular JSON objects, NOT raw text payloads.
+// Ensure your app uses express.json() for this route, NOT express.raw()
 stripeWebhooksRouter.post('/', async (request, response) => {
-  const signature = request.headers['stripe-signature'];
+  // 1. Validate the Paystack Webhook Signature
+  const hash = crypto
+    .createHmac('sha512', process.env.PAYSTACK_SECRET_KEY ?? '')
+    .update(JSON.stringify(request.body))
+    .digest('hex');
 
-  if (!signature || typeof signature !== 'string') {
-    response.status(400).send('Missing Stripe signature.');
+  if (hash !== request.headers['x-paystack-signature']) {
+    response.status(401).send('Invalid signature');
     return;
   }
 
-  let event: Stripe.Event;
+  // 2. Extract Event Data
+  const event = request.body;
 
-  try {
-    event = stripe.webhooks.constructEvent(
-      request.body,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET ?? '',
-    );
-  } catch (error) {
-    response.status(400).send(error instanceof Error ? error.message : 'Invalid webhook.');
-    return;
-  }
+  // Handle Successful Subscription / First Payment Charge
+  if (event.event === 'charge.success') {
+    const data = event.data;
+    const metadata = data.metadata;
+    const firebaseUid = metadata?.firebaseUid;
 
-  if (event.type === 'customer.subscription.created') {
-    const subscription = event.data.object;
-    const firebaseUid = subscription.metadata.firebaseUid;
+    // Paystack pairs user profiles to unique "customer_code" strings
+    const paystackCustomerCode = data.customer.customer_code;
+    // If using Paystack Subscription Plans, it passes a subscription code string
+    const paystackSubscriptionCode = data.plan?.plan_code ?? 'one_time_charge';
 
     await UserModel.findOneAndUpdate(
-      firebaseUid ? { firebaseUid } : { stripeCustomerId: String(subscription.customer) },
+      firebaseUid ? { firebaseUid } : { stripeCustomerId: paystackCustomerCode },
       {
         $set: {
           firebaseUid,
-          stripeCustomerId: String(subscription.customer),
-          stripeSubscriptionId: subscription.id,
-          subscriptionTier: getTier(subscription),
-          subscriptionStatus: subscription.status,
+          // Mapping Paystack fields directly to your existing database keys 
+          // so you don't have to rewrite your entire User schema right now
+          stripeCustomerId: paystackCustomerCode,
+          stripeSubscriptionId: paystackSubscriptionCode,
+          subscriptionTier: getTier(metadata),
+          subscriptionStatus: 'active',
         },
       },
       { upsert: Boolean(firebaseUid) },
     );
   }
 
-  if (event.type === 'customer.subscription.deleted') {
-    const subscription = event.data.object;
+  // Handle Subscription Expiration or Cancellation
+  if (event.event === 'subscription.disable') {
+    const data = event.data;
 
     await UserModel.findOneAndUpdate(
-      { stripeSubscriptionId: subscription.id },
+      { stripeSubscriptionId: data.subscription_code },
       {
         $set: {
           subscriptionTier: 'free',
@@ -72,5 +74,6 @@ stripeWebhooksRouter.post('/', async (request, response) => {
     );
   }
 
-  response.json({ received: true });
+  // Paystack expects a simple 200 OK text/json receipt confirmation
+  response.sendStatus(200);
 });

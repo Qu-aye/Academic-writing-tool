@@ -21,7 +21,7 @@ app.use(
   }),
 );
 
-app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }), stripeWebhooksRouter);
+app.use('/api/webhooks/stripe', stripeWebhooksRouter);
 app.use(express.json());
 
 app.get('/api/health', (_request, response) => {
