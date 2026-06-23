@@ -37,3 +37,17 @@ export type CitationEntry = {
   source: AcademicSource;
   insertedAt: number;
 };
+
+export type WorkspaceRole = 'owner' | 'editor' | 'viewer';
+
+export type WorkspaceMember = {
+  userId: string;
+  role: WorkspaceRole;
+};
+
+export type Workspace = {
+  workspaceId: string;
+  name: string;
+  ownerId: string;
+  members: WorkspaceMember[];
+};

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { searchAcademicSources } from '../api/search';
+import { useAuth } from '../context/AuthContext';
 import type { AcademicSource } from '../types';
 
 type SearchPopoverProps = {
@@ -17,6 +18,7 @@ export function SearchPopover({
   left,
   onInsert,
 }: SearchPopoverProps) {
+  const { getIdToken, user } = useAuth();
   const [results, setResults] = useState<AcademicSource[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,11 +37,11 @@ export function SearchPopover({
       setError(null);
 
       try {
-        const response = await searchAcademicSources(query, controller.signal);
+        const response = await searchAcademicSources(query, controller.signal, getIdToken);
         setResults(response.results);
       } catch {
         if (!controller.signal.aborted) {
-          setError('Search is temporarily unavailable.');
+          setError(user ? 'Search is temporarily unavailable.' : 'Sign in to search academic sources.');
           setResults([]);
         }
       } finally {
@@ -53,7 +55,7 @@ export function SearchPopover({
       controller.abort();
       window.clearTimeout(timeoutId);
     };
-  }, [query, visible]);
+  }, [getIdToken, query, user, visible]);
 
   if (!visible) {
     return null;

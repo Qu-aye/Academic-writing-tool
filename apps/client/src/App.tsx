@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { BibliographyPanel } from './components/BibliographyPanel';
 import { EditorShell } from './components/EditorShell';
 import { StyleSelector } from './components/StyleSelector';
+import { sendContactMessage } from './api/contact';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { DocumentProvider, useDocument } from './context/DocumentContext';
 
 type Route = '/' | '/features' | '/about' | '/contact' | '/dashboard' | '/dashboard/editor';
@@ -90,12 +92,14 @@ function MarketingShell({
   currentRoute: Route;
   onNavigate: (path: Route) => void;
 }) {
+  const { user, signInWithGoogle, signOutUser } = useAuth();
+
   return (
     <div className="site-shell">
       <header className="site-header">
         <AppLink className="brand-lockup" path="/" onNavigate={onNavigate}>
           <span className="brand-mark">A</span>
-          <span>AcademicOS</span>
+          <span>SewornaAI</span>
         </AppLink>
 
         <nav className="site-nav" aria-label="Primary navigation">
@@ -111,9 +115,15 @@ function MarketingShell({
           ))}
         </nav>
 
-        <AppLink className="primary-link" path="/dashboard/editor" onNavigate={onNavigate}>
-          Open app
-        </AppLink>
+        {user ? (
+          <button className="primary-link primary-link--button" type="button" onClick={signOutUser}>
+            Sign out
+          </button>
+        ) : (
+          <button className="primary-link primary-link--button" type="button" onClick={signInWithGoogle}>
+            Sign in
+          </button>
+        )}
       </header>
 
       {children}
@@ -128,7 +138,7 @@ function LandingPage({ onNavigate }: { onNavigate: (path: Route) => void }) {
         <section className="landing-hero">
           <div className="landing-hero__copy">
             <span className="eyebrow">Research writing SaaS</span>
-            <h1>AcademicOS</h1>
+            <h1>SewornaAI</h1>
             <p>
               A focused workspace for drafting, source discovery, citations, bibliography sync,
               document import, and polished export.
@@ -143,7 +153,7 @@ function LandingPage({ onNavigate }: { onNavigate: (path: Route) => void }) {
             </div>
           </div>
 
-          <div className="product-visual" aria-label="AcademicOS dashboard preview">
+          <div className="product-visual" aria-label="SewornaAI dashboard preview">
             <div className="product-visual__bar">
               <span></span>
               <span></span>
@@ -221,7 +231,7 @@ function AboutPage({ onNavigate }: { onNavigate: (path: Route) => void }) {
         <span className="eyebrow">About</span>
         <h1>Built for researchers who want fewer context switches.</h1>
         <p>
-          AcademicOS brings the writing surface, source search, citation insertion, bibliography
+          SewornaAI brings the writing surface, source search, citation insertion, bibliography
           management, and document export into one quiet workspace. The app keeps the existing
           research assistant core intact while giving it a SaaS-ready product structure.
         </p>
@@ -231,12 +241,31 @@ function AboutPage({ onNavigate }: { onNavigate: (path: Route) => void }) {
 }
 
 function ContactPage({ onNavigate }: { onNavigate: (path: Route) => void }) {
+  const [status, setStatus] = useState<string | null>(null);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+
+    try {
+      await sendContactMessage({
+        name: String(formData.get('name') ?? ''),
+        email: String(formData.get('email') ?? ''),
+        message: String(formData.get('message') ?? ''),
+      });
+      event.currentTarget.reset();
+      setStatus('Message sent.');
+    } catch {
+      setStatus('Unable to send this message right now.');
+    }
+  };
+
   return (
     <MarketingShell currentRoute="/contact" onNavigate={onNavigate}>
       <main className="content-page content-page--narrow">
         <span className="eyebrow">Contact</span>
         <h1>Talk to us about academic writing workflows.</h1>
-        <form className="contact-form">
+        <form className="contact-form" onSubmit={handleSubmit}>
           <label>
             Name
             <input type="text" name="name" autoComplete="name" />
@@ -249,9 +278,10 @@ function ContactPage({ onNavigate }: { onNavigate: (path: Route) => void }) {
             Message
             <textarea name="message" rows={5} />
           </label>
-          <button className="primary-link primary-link--button" type="button">
+          <button className="primary-link primary-link--button" type="submit">
             Send message
           </button>
+          {status && <p>{status}</p>}
         </form>
       </main>
     </MarketingShell>
@@ -308,12 +338,14 @@ function DashboardShell({
   currentRoute: Route;
   onNavigate: (path: Route) => void;
 }) {
+  const { user, signInWithGoogle, signOutUser } = useAuth();
+
   return (
     <div className="dashboard-shell">
       <aside className="sidebar">
         <AppLink className="brand-lockup sidebar__brand" path="/" onNavigate={onNavigate}>
           <span className="brand-mark">A</span>
-          <span>AcademicOS</span>
+          <span>SewornaAI</span>
         </AppLink>
 
         <nav className="sidebar-nav" aria-label="Dashboard navigation">
@@ -331,6 +363,17 @@ function DashboardShell({
         </nav>
 
         <div className="sidebar__footer">
+          {user ? (
+            <button className="sidebar-link" type="button" onClick={signOutUser}>
+              <span>S</span>
+              Sign out
+            </button>
+          ) : (
+            <button className="sidebar-link" type="button" onClick={signInWithGoogle}>
+              <span>G</span>
+              Sign in
+            </button>
+          )}
           <AppLink className="sidebar-link" path="/" onNavigate={onNavigate}>
             <span>H</span>
             Home
@@ -377,8 +420,10 @@ function RoutedApp() {
 
 export default function App() {
   return (
-    <DocumentProvider>
-      <RoutedApp />
-    </DocumentProvider>
+    <AuthProvider>
+      <DocumentProvider>
+        <RoutedApp />
+      </DocumentProvider>
+    </AuthProvider>
   );
 }

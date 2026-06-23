@@ -2,6 +2,7 @@ import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { parseUploadedDocument } from '../api/documents';
+import { useAuth } from '../context/AuthContext';
 import { CitationToken } from '../editor/CitationToken';
 import { InlineTextStyle, StyledHeading, StyledParagraph, Underline } from '../editor/FormattingExtensions';
 import { useDocument } from '../context/DocumentContext';
@@ -18,6 +19,7 @@ type PopoverState = {
 };
 
 export function EditorShell() {
+  const { getIdToken, user } = useAuth();
   const { style, bibliography, citationsById, upsertCitation, getCitationNumber } = useDocument();
   const [selectedText, setSelectedText] = useState('');
   const [isUploading, setIsUploading] = useState(false);
@@ -164,11 +166,17 @@ export function EditorShell() {
       return;
     }
 
+    if (!user) {
+      setStatusMessage('Sign in to upload and save drafts.');
+      event.target.value = '';
+      return;
+    }
+
     setIsUploading(true);
     setStatusMessage(`Importing ${file.name}...`);
 
     try {
-      const parsedDocument = await parseUploadedDocument(file);
+      const parsedDocument = await parseUploadedDocument(file, { getIdToken });
       editor.commands.setContent(parsedDocument.html);
       setDocumentName(parsedDocument.fileName);
       setStatusMessage(`Imported ${parsedDocument.fileName} (${parsedDocument.fileType.toUpperCase()}).`);

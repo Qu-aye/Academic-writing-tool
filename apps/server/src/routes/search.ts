@@ -1,9 +1,11 @@
 import { Router } from 'express';
+import { requireAuth } from '../middleware/auth.js';
+import { requireSearchEntitlement } from '../middleware/searchEntitlement.js';
 import { searchAcademicSources } from '../services/searchProviders.js';
 
 export const searchRouter = Router();
 
-searchRouter.get('/', async (request, response) => {
+searchRouter.get('/', requireAuth, requireSearchEntitlement, async (request, response) => {
   const query = typeof request.query.q === 'string' ? request.query.q.trim() : '';
 
   if (query.length < 5) {

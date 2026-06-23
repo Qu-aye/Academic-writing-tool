@@ -1,11 +1,11 @@
 {
-  "name": "research-citation-assistant",
+  "name": "sewornaai",
   "private": true,
   "workspaces": [
     "apps/*"
   ],
   "scripts": {
-    "dev": "node \"%npm_config_local_prefix%\\scripts\\dev.mjs\"",
-    "build": "node \"%npm_config_local_prefix%\\scripts\\build.mjs\""
+    "dev": "node scripts/dev.mjs",
+    "build": "node scripts/build.mjs"
   }
 }
