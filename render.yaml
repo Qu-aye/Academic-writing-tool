@@ -15,7 +15,7 @@ services:
       - key: FIREBASE_SERVICE_ACCOUNT_JSON
         sync: false
       - key: CLIENT_ORIGIN
-        value: https://your-frontend-url.com
+        sync: false
       - key: STRIPE_SECRET_KEY
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
@@ -33,4 +33,20 @@ services:
       - key: CONTACT_FROM_EMAIL
         sync: false
       - key: CONTACT_TO_EMAIL
+        sync: false
+
+  - type: static
+    name: academic-writing-frontend
+    buildCommand: npm run build
+    staticPublishPath: apps/client/dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false
+      - key: VITE_FIREBASE_API_KEY
+        sync: false
+      - key: VITE_FIREBASE_AUTH_DOMAIN
+        sync: false
+      - key: VITE_FIREBASE_PROJECT_ID
+        sync: false
+      - key: VITE_FIREBASE_APP_ID
         sync: false
