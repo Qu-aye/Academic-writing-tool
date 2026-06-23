@@ -4,7 +4,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { parseUploadedDocument } from '../api/documents';
 import { useAuth } from '../context/AuthContext';
 import { CitationToken } from '../editor/CitationToken';
-import { InlineTextStyle, StyledHeading, StyledParagraph, Underline } from '../editor/FormattingExtensions';
+import { InlineTextStyle, StyledHeading, StyledParagraph, Underline } from '../Editor/FormattingExtensions';
 import { useDocument } from '../context/DocumentContext';
 import { exportDocument } from '../lib/exportDocument';
 import { formatInlineCitation } from '../lib/citationFormatting';
