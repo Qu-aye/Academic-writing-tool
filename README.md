@@ -1,9 +1,13 @@
-# Academic Writing Assistant
+# SewornaAI
 
-A free full-stack academic writing assistant with:
+A multi-tenant SaaS foundation for academic writing assistance with:
 
 - a React writing interface built on Tiptap
 - a Node.js + Express backend for academic source search
+- Firebase Authentication for Google Sign-In
+- MongoDB persistence keyed to Firebase user IDs
+- Stripe subscription state and free lookup quota enforcement
+- SMTP-backed contact form delivery
 - automatic citation insertion after selected text
 - a live bibliography that reformats when the citation style changes
 - document import for PDF, Word, ODT, RTF, HTML, Markdown, and text files
@@ -42,10 +46,11 @@ A free full-stack academic writing assistant with:
 2. Select a sentence or paragraph.
 3. The selection pop-up calls `GET /api/search?q=...`.
 4. The backend queries Semantic Scholar, Crossref, PubMed, and Google Scholar in parallel.
-5. Picking a result inserts an inline citation token after the selected text.
-6. The bibliography updates instantly from centralized citation state.
-7. Changing the style reformats the bibliography globally.
-8. Export the draft as DOC, DOCX, RTF, PDF, HTML, Markdown, or TXT with the bibliography appended on a new page/section.
+5. The backend verifies the Firebase ID token and enforces the user's lookup entitlement.
+6. Picking a result inserts an inline citation token after the selected text.
+7. The bibliography updates instantly from centralized citation state.
+8. Changing the style reformats the bibliography globally.
+9. Export the draft as DOC, DOCX, RTF, PDF, HTML, Markdown, or TXT with the bibliography appended on a new page/section.
 
 ## Style support
 

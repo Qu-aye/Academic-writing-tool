@@ -1,22 +1,35 @@
 import type { DocumentParseResponse } from '../types';
+import { apiRequest } from './client';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? 'http://localhost:4000' : '');
+type AuthOptions = {
+  getIdToken?: () => Promise<string | null>;
+};
 
-export async function parseUploadedDocument(file: File): Promise<DocumentParseResponse> {
+export type SavedDocumentPayload = {
+  title: string;
+  bodyHtml: string;
+  citationStyle: string;
+  citations?: unknown[];
+  workspaceId?: string;
+};
+
+export async function parseUploadedDocument(
+  file: File,
+  options: AuthOptions = {},
+): Promise<DocumentParseResponse> {
   const formData = new FormData();
   formData.append('document', file);
 
   let response: Response;
 
   try {
-    response = await fetch(`${API_BASE_URL}/api/documents/parse`, {
+    response = await apiRequest('/api/documents/parse', {
       method: 'POST',
       body: formData,
+      getIdToken: options.getIdToken,
     });
   } catch {
-    throw new Error(
-      `Upload service is unreachable at ${API_BASE_URL}. Restart the backend and try the file again.`,
-    );
+    throw new Error('Upload service is unreachable. Restart the backend and try the file again.');
   }
 
   if (!response.ok) {
@@ -25,4 +38,37 @@ export async function parseUploadedDocument(file: File): Promise<DocumentParseRe
   }
 
   return response.json() as Promise<DocumentParseResponse>;
+}
+
+export async function saveDocumentState(
+  payload: SavedDocumentPayload,
+  options: AuthOptions = {},
+) {
+  const response = await apiRequest('/api/documents', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+    getIdToken: options.getIdToken,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Document save failed with status ${response.status}`);
+  }
+
+  return response.json();
+}
+
+export async function listDocuments(options: AuthOptions & { workspaceId?: string } = {}) {
+  const query = options.workspaceId ? `?workspaceId=${encodeURIComponent(options.workspaceId)}` : '';
+  const response = await apiRequest(`/api/documents${query}`, {
+    getIdToken: options.getIdToken,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Document list failed with status ${response.status}`);
+  }
+
+  return response.json();
 }
