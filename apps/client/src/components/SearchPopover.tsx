@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { searchAcademicSources } from '../api/search';
+import { searchAcademicSources, SearchApiError } from '../api/search';
 import { useAuth } from '../context/AuthContext';
 import type { AcademicSource } from '../types';
 
@@ -10,6 +10,26 @@ type SearchPopoverProps = {
   left: number;
   onInsert: (source: AcademicSource) => void;
 };
+
+const MIN_SEARCH_QUERY_LENGTH = 5;
+
+function getSearchErrorMessage(error: unknown, isSignedIn: boolean): string {
+  if (error instanceof SearchApiError) {
+    if (error.status === 401) {
+      return 'Please sign in to search academic sources.';
+    }
+
+    if (error.status === 402) {
+      return error.details ?? 'Free search quota exceeded. Upgrade to continue academic source lookups.';
+    }
+
+    if (error.details) {
+      return error.details;
+    }
+  }
+
+  return isSignedIn ? 'Search is temporarily unavailable.' : 'Sign in to search academic sources.';
+}
 
 export function SearchPopover({
   query,
@@ -24,7 +44,9 @@ export function SearchPopover({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!visible || query.trim().length < 10) {
+    const normalizedQuery = query.trim();
+
+    if (!visible || normalizedQuery.length < MIN_SEARCH_QUERY_LENGTH) {
       setResults([]);
       setError(null);
       setLoading(false);
@@ -39,9 +61,9 @@ export function SearchPopover({
       try {
         const response = await searchAcademicSources(query, controller.signal, getIdToken);
         setResults(response.results);
-      } catch {
+      } catch (error) {
         if (!controller.signal.aborted) {
-          setError(user ? 'Search is temporarily unavailable.' : 'Sign in to search academic sources.');
+          setError(getSearchErrorMessage(error, Boolean(user)));
           setResults([]);
         }
       } finally {
@@ -61,6 +83,8 @@ export function SearchPopover({
     return null;
   }
 
+  const normalizedQuery = query.trim();
+
   return (
     <div className="search-popover" style={{ top, left }}>
       <div className="search-popover__header">
@@ -74,7 +98,7 @@ export function SearchPopover({
         </p>
       )}
       {error && <p className="search-popover__status search-popover__status--error">{error}</p>}
-      {!loading && !error && results.length === 0 && query.trim().length >= 10 && (
+      {!loading && !error && results.length === 0 && normalizedQuery.length >= MIN_SEARCH_QUERY_LENGTH && (
         <p className="search-popover__status">No related sources found for this selection.</p>
       )}
 
