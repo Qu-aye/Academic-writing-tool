@@ -8,10 +8,11 @@ function inferApiBaseUrl() {
   }
 
   const { protocol, hostname, origin } = window.location;
-  const renderFrontendSuffix = '-frontend.onrender.com';
+  const renderFrontendHostPattern = /^([a-z0-9-]+)-frontend\.onrender\.com$/i;
+  const renderMatch = hostname.match(renderFrontendHostPattern);
 
-  if (hostname.endsWith(renderFrontendSuffix)) {
-    const servicePrefix = hostname.slice(0, -renderFrontendSuffix.length);
+  if (renderMatch) {
+    const servicePrefix = renderMatch[1];
     return `${protocol}//${servicePrefix}-server.onrender.com`;
   }
 
