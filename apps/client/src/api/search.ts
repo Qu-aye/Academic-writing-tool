@@ -1,5 +1,5 @@
 import type { SearchResponse } from '../types';
-import { apiRequest } from './client';
+import { apiRequest, type GetIdToken } from './client';
 
 export class SearchApiError extends Error {
   status: number;
@@ -16,7 +16,7 @@ export class SearchApiError extends Error {
 export async function searchAcademicSources(
   query: string,
   signal?: AbortSignal,
-  getIdToken?: () => Promise<string | null>,
+  getIdToken?: GetIdToken,
 ): Promise<SearchResponse> {
   const encoded = encodeURIComponent(query.trim());
   const response = await apiRequest(`/api/search?q=${encoded}`, { signal, getIdToken });

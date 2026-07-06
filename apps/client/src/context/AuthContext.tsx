@@ -8,12 +8,13 @@ import {
 } from 'react';
 import type { User } from 'firebase/auth';
 import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
+import type { GetIdToken } from '../api/client';
 import { firebaseAuth, googleAuthProvider } from '../lib/firebase';
 
 type AuthContextValue = {
   user: User | null;
   loading: boolean;
-  getIdToken: () => Promise<string | null>;
+  getIdToken: GetIdToken;
   signInWithGoogle: () => Promise<void>;
   signOutUser: () => Promise<void>;
 };
@@ -35,7 +36,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     () => ({
       user,
       loading,
-      getIdToken: () => user?.getIdToken() ?? Promise.resolve(null),
+      getIdToken: (forceRefresh) => user?.getIdToken(forceRefresh) ?? Promise.resolve(null),
       signInWithGoogle: async () => {
         await signInWithPopup(firebaseAuth, googleAuthProvider);
       },

@@ -1,8 +1,8 @@
 import type { DocumentParseResponse } from '../types';
-import { apiRequest } from './client';
+import { apiRequest, type GetIdToken } from './client';
 
 type AuthOptions = {
-  getIdToken?: () => Promise<string | null>;
+  getIdToken?: GetIdToken;
 };
 
 export type SavedDocumentPayload = {
@@ -27,6 +27,7 @@ export async function parseUploadedDocument(
       method: 'POST',
       body: formData,
       getIdToken: options.getIdToken,
+      forceTokenRefresh: true,
     });
   } catch {
     throw new Error('Upload service is unreachable. Restart the backend and try the file again.');

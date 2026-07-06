@@ -1,8 +1,8 @@
 import type { Workspace, WorkspaceRole } from '../types';
-import { apiRequest } from './client';
+import { apiRequest, type GetIdToken } from './client';
 
 type AuthOptions = {
-  getIdToken?: () => Promise<string | null>;
+  getIdToken?: GetIdToken;
 };
 
 export async function listWorkspaces(options: AuthOptions = {}) {
