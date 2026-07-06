@@ -27,9 +27,11 @@ export async function requireSearchEntitlement(
     return;
   }
 
-  if (isNewLookupPeriod(user.searchLookupPeriodStart)) {
+  const resetPeriod = isNewLookupPeriod(user.searchLookupPeriodStart);
+  if (resetPeriod) {
     user.searchLookupsUsed = 0;
     user.searchLookupPeriodStart = new Date();
+    await user.save();
   }
 
   const quota = Number(process.env.FREE_SEARCH_LOOKUPS_PER_MONTH ?? DEFAULT_FREE_LOOKUPS_PER_MONTH);
@@ -43,7 +45,6 @@ export async function requireSearchEntitlement(
     return;
   }
 
-  user.searchLookupsUsed += 1;
-  await user.save();
+  response.locals.searchLookupFirebaseUid = user.firebaseUid;
   next();
 }
