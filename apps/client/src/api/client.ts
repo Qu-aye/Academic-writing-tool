@@ -1,4 +1,29 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? 'http://localhost:4000' : '');
+function normalizeBaseUrl(value: string) {
+  return value.replace(/\/+$/, '');
+}
+
+function inferApiBaseUrl() {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  const { protocol, hostname, origin } = window.location;
+  const renderFrontendSuffix = '-frontend.onrender.com';
+
+  if (hostname.endsWith(renderFrontendSuffix)) {
+    const servicePrefix = hostname.slice(0, -renderFrontendSuffix.length);
+    return `${protocol}//${servicePrefix}-server.onrender.com`;
+  }
+
+  return origin;
+}
+
+const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+const API_BASE_URL = configuredApiBaseUrl
+  ? normalizeBaseUrl(configuredApiBaseUrl)
+  : import.meta.env.DEV
+    ? 'http://localhost:4000'
+    : inferApiBaseUrl();
 
 type ApiRequestOptions = RequestInit & {
   getIdToken?: () => Promise<string | null>;

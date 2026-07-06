@@ -13,11 +13,34 @@ import { workspacesRouter } from './routes/workspaces.js';
 const app = express();
 const port = Number(process.env.PORT ?? 4000);
 
+function normalizeOrigin(origin: string) {
+  return origin.replace(/\/$/, '');
+}
+
+const configuredClientOrigins = (process.env.CLIENT_ORIGIN ?? '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean)
+  .map(normalizeOrigin);
+const allowAllOrigins = configuredClientOrigins.length === 0;
+
 await connectDatabase();
 
 app.use(
   cors({
-    origin: process.env.CLIENT_ORIGIN ?? 'http://localhost:5173',
+    origin: (origin, callback) => {
+      if (!origin || allowAllOrigins) {
+        callback(null, true);
+        return;
+      }
+
+      if (configuredClientOrigins.includes(normalizeOrigin(origin))) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error('CORS origin not allowed'));
+    },
   }),
 );
 
