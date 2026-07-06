@@ -44,6 +44,8 @@ type PubMedSummaryResponse = {
   result?: Record<string, PubMedSummaryItem | string[]>;
 };
 
+const PROVIDER_TIMEOUT_MS = Number(process.env.SEARCH_PROVIDER_TIMEOUT_MS ?? 8000);
+
 function stripHtmlTags(value?: string) {
   return (value ?? '').replace(/<[^>]+>/g, ' ');
 }
@@ -89,12 +91,26 @@ function inferYear(value?: string) {
 }
 
 async function fetchJson<T>(url: string): Promise<T> {
-  const response = await fetch(url, {
-    headers: {
-      Accept: 'application/json',
-      'User-Agent': 'academic-writing-assistant/1.0',
-    },
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'academic-writing-assistant/1.0',
+      },
+      signal: controller.signal,
+    }).catch((error) => {
+      if (controller.signal.aborted) {
+        throw new Error(`Request timed out after ${PROVIDER_TIMEOUT_MS}ms`);
+      }
+      throw error;
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     throw new Error(`Request failed: ${response.status}`);
@@ -104,13 +120,27 @@ async function fetchJson<T>(url: string): Promise<T> {
 }
 
 async function fetchText(url: string): Promise<string> {
-  const response = await fetch(url, {
-    headers: {
-      Accept: 'text/html,application/xhtml+xml',
-      'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 academic-writing-assistant/1.0',
-    },
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      headers: {
+        Accept: 'text/html,application/xhtml+xml',
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 academic-writing-assistant/1.0',
+      },
+      signal: controller.signal,
+    }).catch((error) => {
+      if (controller.signal.aborted) {
+        throw new Error(`Request timed out after ${PROVIDER_TIMEOUT_MS}ms`);
+      }
+      throw error;
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     throw new Error(`Request failed: ${response.status}`);
@@ -250,14 +280,27 @@ export async function searchGoogleScholar(query: string, limit = 4): Promise<Aca
 }
 
 export async function searchAcademicSources(query: string): Promise<AcademicSource[]> {
-  const settled = await Promise.allSettled([
-    searchSemanticScholar(query),
-    searchCrossref(query),
-    searchPubMed(query),
-    searchGoogleScholar(query),
-  ]);
+  const providers: Array<{
+    name: string;
+    execute: () => Promise<AcademicSource[]>;
+  }> = [
+    { name: 'Semantic Scholar', execute: () => searchSemanticScholar(query) },
+    { name: 'Crossref', execute: () => searchCrossref(query) },
+    { name: 'PubMed', execute: () => searchPubMed(query) },
+    { name: 'Google Scholar', execute: () => searchGoogleScholar(query) },
+  ];
+  const settled = await Promise.all(
+    providers.map(async (provider) => {
+      try {
+        return await provider.execute();
+      } catch (error) {
+        console.error(`Academic search provider failed (${provider.name})`, error);
+        return [];
+      }
+    }),
+  );
 
-  const combined = settled.flatMap((result) => (result.status === 'fulfilled' ? result.value : []));
+  const combined = settled.flat();
   const seen = new Set<string>();
 
   return combined
