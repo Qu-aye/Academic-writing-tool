@@ -1,12 +1,25 @@
 import { Router } from 'express';
-import { requireAuth } from '../middleware/auth.js';
+import rateLimit from 'express-rate-limit';
+import { getAuth, requireAuth } from '../middleware/auth.js';
 import { requireSearchEntitlement } from '../middleware/searchEntitlement.js';
 import { UserModel } from '../models/User.js';
 import { searchAcademicSources } from '../services/searchProviders.js';
 
 export const searchRouter = Router();
 
-searchRouter.get('/', requireAuth, requireSearchEntitlement, async (request, response) => {
+const SEARCH_REQUESTS_PER_MINUTE = Number(process.env.SEARCH_REQUESTS_PER_MINUTE ?? 30);
+const searchRateLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: SEARCH_REQUESTS_PER_MINUTE,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (request) => getAuth(request).uid,
+  message: {
+    error: 'Too many search requests. Please wait before trying again.',
+  },
+});
+
+searchRouter.get('/', requireAuth, searchRateLimiter, requireSearchEntitlement, async (request, response) => {
   const query = typeof request.query.q === 'string' ? request.query.q.trim() : '';
 
   if (query.length < 5) {
