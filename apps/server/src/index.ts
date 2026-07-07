@@ -13,6 +13,8 @@ import { workspacesRouter } from './routes/workspaces.js';
 const app = express();
 const port = Number(process.env.PORT ?? 4000);
 
+app.set('trust proxy', 1);
+
 function normalizeOrigin(origin: string) {
   return origin.replace(/\/$/, '');
 }

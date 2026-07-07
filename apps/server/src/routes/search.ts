@@ -13,7 +13,6 @@ const searchRateLimiter = rateLimit({
   limit: SEARCH_REQUESTS_PER_MINUTE,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (request) => request.headers.authorization ?? request.ip ?? 'unknown',
   message: {
     error: 'Too many search requests. Please wait before trying again.',
   },
