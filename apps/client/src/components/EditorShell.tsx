@@ -108,7 +108,13 @@ export function EditorShell() {
         return;
       }
 
-      const nextLabel = formatInlineCitation(entry.source, style, citationNumbers.get(citationId));
+      const locator = node.attrs.locator as string | undefined;
+      const nextLabel = formatInlineCitation(
+        entry.source,
+        style,
+        citationNumbers.get(citationId),
+        locator,
+      );
 
       if (node.attrs.label !== nextLabel) {
         transaction.setNodeMarkup(position, undefined, {
@@ -128,12 +134,40 @@ export function EditorShell() {
       return;
     }
 
+    const { from, to } = selectionRangeRef.current;
+    const beforeSelection = editor.state.doc.textBetween(Math.max(0, from - 1), from, ' ');
+    const afterSelection = editor.state.doc.textBetween(to, Math.min(editor.state.doc.content.size, to + 1), ' ');
+    const isQuotedSelection =
+      /[“"«„‚‹‘]/.test(beforeSelection) && /[”"»‟›’']/.test(afterSelection);
+    const looksLikeDirectQuote =
+      /[“”"‘’'«»‹›]/.test(selectedText) || isQuotedSelection || editor.state.selection.$from.parent.type.name === 'blockquote';
+    let locator: string | undefined;
+
+    if (looksLikeDirectQuote) {
+      const providedLocator = window.prompt(
+        'Direct quote detected. Enter a page number or paragraph reference, or leave blank to cancel.',
+      );
+
+      if (providedLocator === null) {
+        return;
+      }
+
+      const trimmedLocator = providedLocator.trim();
+      if (!trimmedLocator) {
+        setStatusMessage('Direct quotes need a page or paragraph reference.');
+        return;
+      }
+
+      locator = /^\d+$/.test(trimmedLocator) ? `p. ${trimmedLocator}` : trimmedLocator;
+    }
+
     const citationId = upsertCitation(source);
     const targetPosition = selectionRangeRef.current.to;
     const citationLabel = formatInlineCitation(
       source,
       style,
       getCitationNumber(citationId) ?? bibliography.length + 1,
+      locator,
     );
 
     editor
@@ -147,6 +181,7 @@ export function EditorShell() {
             type: 'citationToken',
             attrs: {
               citationId,
+              locator: locator ?? null,
               label: citationLabel,
             },
           },

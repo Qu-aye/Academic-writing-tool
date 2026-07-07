@@ -12,6 +12,9 @@ export const CitationToken = Node.create({
       citationId: {
         default: null,
       },
+      locator: {
+        default: null,
+      },
       label: {
         default: '[Citation]',
       },
@@ -32,6 +35,7 @@ export const CitationToken = Node.create({
       {
         ...HTMLAttributes,
         'data-citation-id': HTMLAttributes.citationId,
+        'data-citation-locator': HTMLAttributes.locator,
         class: 'citation-token',
         contenteditable: 'false',
       },

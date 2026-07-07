@@ -6,7 +6,7 @@ type StyleSelectorProps = {
 };
 
 const STYLE_OPTIONS: { value: CitationStyle; label: string }[] = [
-  { value: 'harvard-ctr', label: 'Harvard (Default)' },
+  { value: 'harvard-ctr', label: 'Harvard (Cite Them Right)' },
   { value: 'apa', label: 'APA' },
   { value: 'mla', label: 'MLA' },
   { value: 'vancouver', label: 'Vancouver' },
