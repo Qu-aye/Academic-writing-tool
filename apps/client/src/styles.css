@@ -3,7 +3,7 @@
   --bg: #f6f7f3;
   --surface: #ffffff;
   --surface-muted: #eef3ee;
-  --ink: #17211c;
+  --ink: #17211c; --ink-rgb: 23, 33, 28;
   --muted: #66736b;
   --line: #dce5dd;
   --accent: #1f7a5a;
@@ -21,7 +21,7 @@
   --bg: #101b17;
   --surface: #1a2521;
   --surface-muted: #24312c;
-  --ink: #f7fff9;
+  --ink: #f7fff9; --ink-rgb: 247, 255, 249;
   --muted: #a8b5af;
   --line: #3a4742;
   --accent: #4fb47c;
@@ -96,7 +96,7 @@ button {
   place-items: center;
   border-radius: 8px;
   background: var(--ink);
-  color: #f9fbf7;
+  color: var(--surface);
   font-weight: 800;
 }
 
@@ -140,7 +140,7 @@ button {
 
 .primary-link {
   background: var(--accent);
-  color: #f7fff9;
+  color: var(--surface);
   box-shadow: 0 10px 26px rgba(31, 122, 90, 0.22);
 }
 
@@ -273,7 +273,7 @@ button {
 
 .product-visual aside strong {
   background: var(--ink);
-  color: #fff;
+  color: var(--surface);
 }
 
 .product-visual section {
@@ -438,8 +438,8 @@ button {
   height: 100vh;
   padding: 22px;
   border-right: 1px solid var(--line);
-  background: #101b17;
-  color: #f7fff9;
+  background: var(--bg);
+  color: var(--surface);
 }
 
 .sidebar__brand {
@@ -447,8 +447,8 @@ button {
 }
 
 .sidebar .brand-mark {
-  background: #f7fff9;
-  color: #101b17;
+  background: var(--surface);
+  color: var(--ink);
 }
 
 .sidebar-nav {
@@ -475,7 +475,7 @@ button {
 .sidebar-link--active,
 .sidebar-link:hover {
   background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  color: var(--surface);
 }
 
 .sidebar__footer {
@@ -591,7 +591,7 @@ button {
 .ghost-button--accent {
   border-color: var(--accent);
   background: var(--accent);
-  color: #f7fff9;
+  color: var(--surface);
 }
 
 .ghost-button--accent:hover {
@@ -640,7 +640,7 @@ button {
 .editor-surface {
   min-height: 68vh;
   padding: 34px;
-  border: 1px solid rgba(220, 229, 221, 0.95);
+  border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
   font-family: Georgia, "Times New Roman", serif;
@@ -683,7 +683,7 @@ button {
   padding: 14px;
   border-radius: 8px;
   background: rgba(16, 27, 23, 0.97);
-  color: #f7fff9;
+  color: var(--surface);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.26);
   animation: rise-in 150ms ease;
 }
@@ -702,11 +702,11 @@ button {
 
 .search-popover__header small,
 .search-popover__status {
-  color: rgba(247, 255, 249, 0.74);
+  color: rgba(var(--ink-rgb), 0.74);
 }
 
 .search-popover__status--error {
-  color: #ffc9b0;
+  color: var(--amber);
 }
 
 .search-results {
