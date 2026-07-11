@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
-import { BibliographyPanel } from './components/BibliographyPanel';
+import { CiteThemRight } from 'cite-them-right';
 import { EditorShell } from './components/EditorShell';
 import { StyleSelector } from './components/StyleSelector';
 import { sendContactMessage } from './api/contact';
