@@ -6,6 +6,7 @@ import { StyleSelector } from './components/StyleSelector';
 import { sendContactMessage } from './api/contact';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DocumentProvider, useDocument } from './context/DocumentContext';
+import { useTheme } from './context/ThemeContext';
 
 type Route = '/' | '/features' | '/about' | '/contact' | '/dashboard' | '/dashboard/editor';
 
@@ -93,7 +94,7 @@ function MarketingShell({
   onNavigate: (path: Route) => void;
 }) {
   const { user, signInWithGoogle, signOutUser } = useAuth();
-
+  const { toggleTheme } = useTheme();
   return (
     <div className="site-shell">
       <header className="site-header">
@@ -114,7 +115,9 @@ function MarketingShell({
             </AppLink>
           ))}
         </nav>
-
+        <button className="theme-toggle" type="button" onClick={toggleTheme} aria-label="Toggle dark mode">
+          <span className="theme-toggle__icon"></span>
+        </button>
         {user ? (
           <button className="primary-link primary-link--button" type="button" onClick={signOutUser}>
             Sign out
@@ -339,7 +342,7 @@ function DashboardShell({
   onNavigate: (path: Route) => void;
 }) {
   const { user, signInWithGoogle, signOutUser } = useAuth();
-
+  const { toggleTheme } = useTheme();
   return (
     <div className="dashboard-shell">
       <aside className="sidebar">
@@ -363,6 +366,9 @@ function DashboardShell({
         </nav>
 
         <div className="sidebar__footer">
+          <button className="sidebar-link theme-toggle--sidebar" type="button" onClick={toggleTheme} aria-label="Toggle dark mode">
+            <span>T</span> Theme
+          </button>
           {user ? (
             <button className="sidebar-link" type="button" onClick={signOutUser}>
               <span>S</span>
