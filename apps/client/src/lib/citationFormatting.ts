@@ -110,16 +110,95 @@ export function formatInlineCitation(
   return `[${authorLabel}${yearLabel}${locatorLabel}]`;
 }
 
+function renderSourceMetadata(source: AcademicSource): string {
+	const metadata: string[] = [];
+
+	if (source.provider) {
+		metadata.push(`<span class="bibliography-meta-item"><strong>Database:</strong> ${escapeHtml(source.provider)}</span>`);
+	}
+
+	if (source.abstract) {
+		metadata.push(
+			`<span class="bibliography-meta-item"><strong>Abstract:</strong> ${escapeHtml(source.abstract)}</span>`,
+		);
+	}
+
+	if (source.doi) {
+		metadata.push(
+			`<span class="bibliography-meta-item"><strong>DOI:</strong> <a href="https://doi.org/${escapeHtml(source.doi)}" target="_blank" rel="noopener noreferrer">${escapeHtml(source.doi)}</a></span>`,
+		);
+	}
+
+	if (source.url) {
+		metadata.push(
+			`<span class="bibliography-meta-item"><strong>URL:</strong> <a href="${escapeHtml(source.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(source.url)}</a></span>`,
+		);
+	}
+
+	if (source.pubmedId) {
+		metadata.push(
+			`<span class="bibliography-meta-item"><strong>PubMed ID:</strong> ${escapeHtml(source.pubmedId)}</span>`,
+		);
+	}
+
+	if (source.semanticScholarId) {
+		metadata.push(
+			`<span class="bibliography-meta-item"><strong>Semantic Scholar ID:</strong> ${escapeHtml(source.semanticScholarId)}</span>`,
+		);
+	}
+
+	if (metadata.length === 0) {
+		return '';
+	}
+
+	return `<div class="bibliography-source-metadata">${metadata.join('')}</div>`;
+}
+
+function escapeHtml(value: string): string {
+	return value
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#039;');
+}
+
 export function formatBibliography(entries: CitationEntry[], style: CitationStyle): string {
-  if (entries.length === 0) {
-    return '<p class="bibliography-empty">Add citations to build your bibliography.</p>';
-  }
+	if (entries.length === 0) {
+		return '<p class="bibliography-empty">Add citations to build your bibliography.</p>';
+	}
 
-  const cite = new Cite(entries.map((entry) => toCslJson(entry.source)));
+	const cite = new Cite(entries.map((entry) => toCslJson(entry.source)));
 
-  return cite.format('bibliography', {
-    format: 'html',
-    template: TEMPLATE_BY_STYLE[style],
-    lang: 'en-US',
-  });
+	const formatted = cite.format('bibliography', {
+		format: 'html',
+		template: TEMPLATE_BY_STYLE[style],
+		lang: 'en-US',
+	});
+
+	const expanded = entries.reduce<string>((html, entry) => {
+		const authorBlock = entry.source.authors
+			.map((author) => `${author.given ?? ''} ${author.family ?? author.literal ?? ''}`.trim())
+			.filter(Boolean)
+			.join(', ');
+
+		if (!authorBlock) {
+			return html;
+		}
+
+		const normalizedAuthorBlock = authorBlock.replace(/\.\s+/g, '. ').replace(/\s+/g, ' ').trim();
+		const etAlPattern = new RegExp(`${escapeRegExp(normalizedAuthorBlock)}\\s*,?\\s*et al\\.`, 'gi');
+		return html.replace(etAlPattern, normalizedAuthorBlock);
+	}, formatted);
+
+	const metadataBlocks = entries
+		.map((entry) => renderSourceMetadata(entry.source))
+		.filter(Boolean)
+		.join('');
+
+	return `${expanded}${metadataBlocks}`;
+}
+
+function escapeRegExp(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
