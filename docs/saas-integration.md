@@ -11,7 +11,6 @@ FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
 CLIENT_ORIGIN=http://localhost:5173
 STRIPE_SECRET_KEY=sk_live_...
 STRIPE_WEBHOOK_SECRET=whsec_...
-FREE_SEARCH_LOOKUPS_PER_MONTH=25
 SMTP_HOST=smtp.example.com
 SMTP_PORT=587
 SMTP_USER=mailer@example.com

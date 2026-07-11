@@ -230,53 +230,44 @@ export async function searchPubMed(query: string, limit = 4): Promise<AcademicSo
     });
 }
 
-export async function searchGoogleScholar(query: string, limit = 4): Promise<AcademicSource[]> {
-  const url = `https://scholar.google.com/scholar?hl=en&q=${encodeURIComponent(query)}`;
-  const html = await fetchText(url);
+type OpenAlexWork = {
+  id: string;
+  title?: string;
+  authorships?: Array<{
+    author: { display_name: string };
+  }>;
+  publication_year?: number;
+  primary_location?: {
+    source?: { display_name?: string };
+  };
+  doi?: string;
+  primary_location_display_name?: string;
+  abstract_inverted_index?: Record<string, number[]>;
+};
 
-  if (html.includes('/sorry/') || html.includes('unusual traffic')) {
-    throw new Error('Google Scholar blocked the request.');
-  }
+export async function searchOpenAlex(query: string, limit = 4): Promise<AcademicSource[]> {
+  const url =
+    `https://api.openalex.org/works?search=${encodeURIComponent(query)}` +
+    `&per_page=${limit}&sort=relevance`;
 
-  const segments = html.split(/<div class="gs_r gs_or gs_scl"[^>]*>/i).slice(1, limit + 1);
-  const results: AcademicSource[] = [];
+  const data = await fetchJson<{ results?: OpenAlexWork[] }>(url);
 
-  for (const segment of segments) {
-      const titleMatch = segment.match(/<h3 class="gs_rt"[^>]*>([\s\S]*?)<\/h3>/i);
-      const linkMatch = titleMatch?.[1]?.match(/href="([^"]+)"/i);
-      const metaMatch = segment.match(/<div class="gs_a"[^>]*>([\s\S]*?)<\/div>/i);
-      const abstractMatch = segment.match(/<div class="gs_rs"[^>]*>([\s\S]*?)<\/div>/i);
-
-      const title = cleanText(titleMatch?.[1]).replace(/^\[[^\]]+\]\s*/, '');
-      const meta = cleanText(metaMatch?.[1]);
-      const abstract = cleanText(abstractMatch?.[1]);
-      const authorSegment = meta.split(/\s+-\s+/)[0] ?? '';
-      const authors = authorSegment
-        .split(/\s*,\s*/)
-        .map((name) => name.trim())
-        .filter(Boolean)
-        .map((name) => parseAuthorName(name));
-      const year = inferYear(meta);
-      const containerTitle = meta.split(/\s+-\s+/)[1]?.trim();
-      const normalizedUrl = linkMatch?.[1]?.replace(/&amp;/g, '&');
-
-      if (!title) {
-        continue;
-      }
-
-      results.push({
-        id: normalizedUrl ?? `google-scholar-${title.toLowerCase().replace(/\W+/g, '-')}`,
-        provider: 'google-scholar',
-        title,
-        authors,
-        year,
-        containerTitle,
-        url: normalizedUrl,
-        abstract: abstract || undefined,
-      });
-  }
-
-  return results;
+  return (data.results ?? []).map((work) => ({
+    id: work.doi ?? work.id,
+    provider: 'openalex' as const,
+    title: work.title ?? 'Untitled result',
+    authors: (work.authorships ?? []).map((a) => parseAuthorName(a.author.display_name)),
+    year: work.publication_year,
+    containerTitle: work.primary_location?.source?.display_name,
+    doi: work.doi,
+    url: work.doi ? `https://doi.org/${work.doi}` : work.id,
+    abstract: work.abstract_inverted_index
+      ? Object.entries(work.abstract_inverted_index)
+          .sort(([, a], [, b]) => a[0] - b[0])
+          .map(([word]) => word)
+          .join(' ')
+      : undefined,
+  }));
 }
 
 export async function searchAcademicSources(query: string): Promise<AcademicSource[]> {
@@ -287,7 +278,7 @@ export async function searchAcademicSources(query: string): Promise<AcademicSour
     { name: 'Semantic Scholar', execute: () => searchSemanticScholar(query) },
     { name: 'Crossref', execute: () => searchCrossref(query) },
     { name: 'PubMed', execute: () => searchPubMed(query) },
-    { name: 'Google Scholar', execute: () => searchGoogleScholar(query) },
+    { name: 'OpenAlex', execute: () => searchOpenAlex(query) },
   ];
   const settled = await Promise.all(
     providers.map(async (provider) => {

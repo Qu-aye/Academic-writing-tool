@@ -9,7 +9,7 @@ export type AuthorName = {
 
 export type AcademicSource = {
   id: string;
-  provider: 'semantic-scholar' | 'crossref' | 'pubmed' | 'google-scholar';
+  provider: 'semantic-scholar' | 'crossref' | 'pubmed' | 'openalex';
   title: string;
   authors: AuthorName[];
   year?: number;

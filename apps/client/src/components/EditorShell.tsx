@@ -20,7 +20,7 @@ type PopoverState = {
 
 export function EditorShell() {
   const { getIdToken, user } = useAuth();
-  const { style, bibliography, citationsById, upsertCitation, getCitationNumber } = useDocument();
+  const { style, bibliography, citationsById, upsertCitation, getCitationNumber, clearVersion } = useDocument();
   const [selectedText, setSelectedText] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -128,6 +128,29 @@ export function EditorShell() {
       editor.view.dispatch(transaction);
     }
   }, [bibliography, citationNumbers, citationsById, editor, style]);
+
+  useEffect(() => {
+    if (!editor) {
+      return;
+    }
+
+    const positions: number[] = [];
+    editor.state.doc.descendants((node, position) => {
+      if (node.type.name === 'citationToken') {
+        positions.push(position);
+      }
+    });
+
+    if (positions.length === 0) {
+      return;
+    }
+
+    const transaction = editor.state.tr;
+    for (let i = positions.length - 1; i >= 0; i--) {
+      transaction.delete(positions[i], positions[i] + 1);
+    }
+    editor.view.dispatch(transaction);
+  }, [clearVersion, editor]);
 
   const insertCitation = (source: AcademicSource) => {
     if (!editor || !selectionRangeRef.current) {
@@ -250,6 +273,22 @@ export function EditorShell() {
     }
   };
 
+  const handleClearDraft = () => {
+    if (!editor) {
+      return;
+    }
+
+    if (!window.confirm('Clear the entire draft? This cannot be undone.')) {
+      return;
+    }
+
+    editor.commands.setContent(
+      '<p>Start writing, paste a draft, or upload a text document. Select any sentence or paragraph to find supporting research and insert citations.</p>',
+    );
+    setDocumentName('research-draft');
+    setStatusMessage('Draft cleared.');
+  };
+
   return (
     <section className="editor-shell">
       <div className="editor-toolbar">
@@ -296,6 +335,13 @@ export function EditorShell() {
             onClick={handleExport}
           >
             {isExporting ? 'Exporting...' : 'Export'}
+          </button>
+          <button
+            type="button"
+            className="ghost-button"
+            onClick={handleClearDraft}
+          >
+            Clear draft
           </button>
         </div>
       </div>

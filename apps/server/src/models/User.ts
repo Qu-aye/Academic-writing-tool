@@ -29,8 +29,6 @@ const userSchema = new Schema(
       default: 'none',
       required: true,
     },
-    searchLookupsUsed: { type: Number, default: 0, required: true },
-    searchLookupPeriodStart: { type: Date, default: () => new Date(), required: true },
   },
   { timestamps: true },
 );

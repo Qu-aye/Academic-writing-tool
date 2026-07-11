@@ -14,6 +14,8 @@ type DocumentContextValue = {
   citationsById: Record<string, CitationEntry>;
   upsertCitation: (source: AcademicSource) => string;
   getCitationNumber: (citationId: string) => number | undefined;
+  clearCitations: () => void;
+  clearVersion: number;
 };
 
 const DEFAULT_STYLE: CitationStyle = 'harvard-ctr';
@@ -32,6 +34,7 @@ export function DocumentProvider({ children }: PropsWithChildren) {
   const [style, setStyle] = useState<CitationStyle>(DEFAULT_STYLE);
   const [citationsById, setCitationsById] = useState<Record<string, CitationEntry>>({});
   const [citationOrder, setCitationOrder] = useState<string[]>([]);
+  const [clearVersion, setClearVersion] = useState(0);
 
   const bibliography = useMemo(
     () =>
@@ -69,6 +72,12 @@ export function DocumentProvider({ children }: PropsWithChildren) {
     return key;
   };
 
+  const clearCitations = () => {
+    setCitationsById({});
+    setCitationOrder([]);
+    setClearVersion((v) => v + 1);
+  };
+
   const value = useMemo<DocumentContextValue>(
     () => ({
       style,
@@ -77,8 +86,10 @@ export function DocumentProvider({ children }: PropsWithChildren) {
       citationsById,
       upsertCitation,
       getCitationNumber,
+      clearCitations,
+      clearVersion,
     }),
-    [bibliography, citationsById, style],
+    [bibliography, citationsById, style, clearVersion],
   );
 
   return <DocumentContext.Provider value={value}>{children}</DocumentContext.Provider>;

@@ -1,50 +1,9 @@
 import type { NextFunction, Request, Response } from 'express';
-import { getAuth } from './auth.js';
-import { ensureUser } from '../services/users.js';
-
-const DEFAULT_FREE_LOOKUPS_PER_MONTH = 25;
-
-function isNewLookupPeriod(periodStart: Date) {
-  const now = new Date();
-  return (
-    now.getUTCFullYear() !== periodStart.getUTCFullYear() ||
-    now.getUTCMonth() !== periodStart.getUTCMonth()
-  );
-}
 
 export async function requireSearchEntitlement(
-  request: Request,
-  response: Response,
+  _request: Request,
+  _response: Response,
   next: NextFunction,
 ) {
-  const user = await ensureUser(getAuth(request));
-
-  if (
-    (user.subscriptionTier === 'premium' || user.subscriptionTier === 'team') &&
-    (user.subscriptionStatus === 'active' || user.subscriptionStatus === 'trialing')
-  ) {
-    next();
-    return;
-  }
-
-  const resetPeriod = isNewLookupPeriod(user.searchLookupPeriodStart);
-  if (resetPeriod) {
-    user.searchLookupsUsed = 0;
-    user.searchLookupPeriodStart = new Date();
-    await user.save();
-  }
-
-  const quota = Number(process.env.FREE_SEARCH_LOOKUPS_PER_MONTH ?? DEFAULT_FREE_LOOKUPS_PER_MONTH);
-
-  if (user.searchLookupsUsed >= quota) {
-    response.status(402).json({
-      error: 'Free search quota exceeded. Upgrade to continue academic source lookups.',
-      quota,
-      used: user.searchLookupsUsed,
-    });
-    return;
-  }
-
-  response.locals.searchLookupFirebaseUid = user.firebaseUid;
   next();
 }

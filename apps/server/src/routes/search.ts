@@ -2,7 +2,6 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { requireAuth } from '../middleware/auth.js';
 import { requireSearchEntitlement } from '../middleware/searchEntitlement.js';
-import { UserModel } from '../models/User.js';
 import { searchAcademicSources } from '../services/searchProviders.js';
 
 export const searchRouter = Router();
@@ -30,20 +29,6 @@ searchRouter.get('/', searchRateLimiter, requireAuth, requireSearchEntitlement, 
 
   try {
     const results = await searchAcademicSources(query);
-
-    const lookupFirebaseUid = response.locals.searchLookupFirebaseUid as string | undefined;
-    if (lookupFirebaseUid) {
-      try {
-        await UserModel.updateOne(
-          { firebaseUid: lookupFirebaseUid },
-          {
-            $inc: { searchLookupsUsed: 1 },
-          },
-        );
-      } catch (error) {
-        console.error('Failed to record search lookup usage', error);
-      }
-    }
 
     response.json({
       query,
