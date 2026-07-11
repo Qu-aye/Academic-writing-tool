@@ -168,37 +168,46 @@ export function formatBibliography(entries: CitationEntry[], style: CitationStyl
 		return '<p class="bibliography-empty">Add citations to build your bibliography.</p>';
 	}
 
-	const cite = new Cite(entries.map((entry) => toCslJson(entry.source)));
+	const formatted = entries
+		.map((entry) => {
+			const cite = new Cite([toCslJson(entry.source)]);
 
-	const formatted = cite.format('bibliography', {
-		format: 'html',
-		template: TEMPLATE_BY_STYLE[style],
-		lang: 'en-US',
-	});
+			const entryHtml = cite.format('bibliography', {
+				format: 'html',
+				template: TEMPLATE_BY_STYLE[style],
+				lang: 'en-US',
+			});
 
-	const expanded = entries.reduce<string>((html, entry) => {
-		const authorBlock = entry.source.authors
-			.map((author) => `${author.given ?? ''} ${author.family ?? author.literal ?? ''}`.trim())
-			.filter(Boolean)
-			.join(', ');
+			const authorBlock = entry.source.authors
+				.map((author) => `${author.given ?? ''} ${author.family ?? author.literal ?? ''}`.trim())
+				.filter(Boolean)
+				.join(', ');
 
-		if (!authorBlock) {
-			return html;
-		}
+			if (!authorBlock) {
+				return entryHtml;
+			}
 
-		const normalizedAuthorBlock = authorBlock.replace(/\.\s+/g, '. ').replace(/\s+/g, ' ').trim();
-		const etAlPattern = new RegExp(`${escapeRegExp(normalizedAuthorBlock)}\\s*,?\\s*et al\\.`, 'gi');
-		return html.replace(etAlPattern, normalizedAuthorBlock);
-	}, formatted);
+			const normalizedAuthorBlock = authorBlock.replace(/\.\s+/g, '. ').replace(/\s+/g, ' ').trim();
+			const etAlPattern = new RegExp(`et al\\.?`, 'gi');
+			const expanded = entryHtml.replace(etAlPattern, normalizedAuthorBlock);
+
+			if (expanded === entryHtml) {
+				return expanded;
+			}
+
+			const closingTagIndex = expanded.lastIndexOf('</span>');
+			if (closingTagIndex >= 0) {
+				return `${expanded.slice(0, closingTagIndex)}${normalizedAuthorBlock}${expanded.slice(closingTagIndex)}`;
+			}
+
+			return `${expanded}${normalizedAuthorBlock}`;
+		})
+		.join('');
 
 	const metadataBlocks = entries
 		.map((entry) => renderSourceMetadata(entry.source))
 		.filter(Boolean)
 		.join('');
 
-	return `${expanded}${metadataBlocks}`;
-}
-
-function escapeRegExp(value: string): string {
-	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	return `${formatted}${metadataBlocks}`;
 }
