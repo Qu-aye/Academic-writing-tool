@@ -21,7 +21,7 @@ services:
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
       - key: FREE_SEARCH_LOOKUPS_PER_MONTH
-        value: "25"
+        value: "100"
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT

@@ -883,20 +883,16 @@ button {
 
 /* Theme toggle button */
 .theme-toggle {
-  background: transparent;
+  background-color: var(--accent);
+  color: var(--surface);
   border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
   cursor: pointer;
-  padding: 8px;
-  border-radius: 6px;
-  color: var(--ink);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-left: 12px;
 }
 
 .theme-toggle:hover {
-  background: var(--surface-muted);
+  background-color: var(--accent-dark);
 }
 
 .theme-toggle__icon {

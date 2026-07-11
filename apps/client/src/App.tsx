@@ -7,6 +7,7 @@ import { sendContactMessage } from './api/contact';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DocumentProvider, useDocument } from './context/DocumentContext';
 import { useTheme } from './context/ThemeContext';
+import { ErrorBoundary } from 'react-error-boundary';
 
 type Route = '/' | '/features' | '/about' | '/contact' | '/dashboard' | '/dashboard/editor';
 
@@ -424,12 +425,20 @@ function RoutedApp() {
   return <div className={isDashboard ? 'app app--dashboard' : 'app'}>{page}</div>;
 }
 
-export default function App() {
+const App = () => {
+  const [loading, setLoading] = useState(false);
+
   return (
-    <AuthProvider>
-      <DocumentProvider>
-        <RoutedApp />
-      </DocumentProvider>
-    </AuthProvider>
+    <ErrorBoundary
+      FallbackComponent={() => <div>Something went wrong</div>}
+    >
+      <AuthProvider>
+        <DocumentProvider>
+          <RoutedApp />
+        </DocumentProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
-}
+};
+
+export default App;
