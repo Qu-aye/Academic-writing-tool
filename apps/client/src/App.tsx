@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
-import { CiteThemRight } from 'cite-them-right';
 import { EditorShell } from './components/EditorShell';
 import { StyleSelector } from './components/StyleSelector';
+import { BibliographyPanel } from './components/BibliographyPanel';
 import { sendContactMessage } from './api/contact';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DocumentProvider, useDocument } from './context/DocumentContext';
 import { useTheme } from './context/ThemeContext';
-import { ErrorBoundary } from 'react-error-boundary';
+import { ErrorBoundary } from "react-error-boundary";
 
 type Route = '/' | '/features' | '/about' | '/contact' | '/dashboard' | '/dashboard/editor';
 
