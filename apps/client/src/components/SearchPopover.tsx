@@ -27,6 +27,22 @@ type SearchPopoverProps = {
 
 const MIN_SEARCH_QUERY_LENGTH = 5;
 
+const currentYear = 2026;
+
+type SortOrder = "recent-past" | "past-recent";
+type YearFilter = "" | "5" | "10" | "all";
+
+const sortOptions: { value: SortOrder; label: string }[] = [
+  { value: "recent-past", label: "Sort: Recent to Past (Newest First)" },
+  { value: "past-recent", label: "Sort: Past to Recent (Oldest First)" },
+];
+
+const yearFilterOptions: { value: YearFilter; label: string }[] = [
+  { value: "", label: "Filter: All Years" },
+  { value: "5", label: "Filter: Last 5 Years" },
+  { value: "10", label: "Filter: Last 10 Years" },
+];
+
 function getSearchErrorMessage(error: unknown, isSignedIn: boolean): string {
   if (error instanceof SearchApiError) {
     if (error.status === 401) {
@@ -57,6 +73,28 @@ function getCitationErrorMessage(error: unknown): string {
   return "Unable to generate citation right now.";
 }
 
+function applySortAndFilter(
+  sources: AcademicSource[],
+  sortOrder: SortOrder,
+  yearFilter: YearFilter,
+): AcademicSource[] {
+  let filtered = [...sources];
+
+  if (yearFilter === "5") {
+    filtered = filtered.filter((s) => s.year != null && s.year >= currentYear - 5);
+  } else if (yearFilter === "10") {
+    filtered = filtered.filter((s) => s.year != null && s.year >= currentYear - 10);
+  }
+
+  filtered.sort((a, b) => {
+    const yearA = a.year ?? 0;
+    const yearB = b.year ?? 0;
+    return sortOrder === "recent-past" ? yearB - yearA : yearA - yearB;
+  });
+
+  return filtered;
+}
+
 export function SearchPopover({
   query,
   visible,
@@ -81,6 +119,12 @@ export function SearchPopover({
   const [citationLoading, setCitationLoading] = useState(false);
 
   const [citationError, setCitationError] = useState<string | null>(null);
+
+  const [sortOrder, setSortOrder] = useState<SortOrder>("recent-past");
+
+  const [activeYearFilter, setActiveYearFilter] = useState<YearFilter>("");
+
+  const displayedResults = applySortAndFilter(results, sortOrder, activeYearFilter);
 
   useEffect(() => {
     const normalizedQuery = query.trim();
@@ -201,16 +245,29 @@ export function SearchPopover({
   const normalizedQuery = query.trim();
 
   return (
-    <div
-      className="search-popover"
-      style={{
-        top,
-        left,
-      }}
-    >
+    <div className="search-popover max-h-[80vh] overflow-y-auto flex flex-col" style={{ top, left }} >
       <div className="search-popover__header">
         <span>Related academic sources</span>
-        <small>Searching public academic sources</small>
+        <div className="search-popover__controls">
+          <select
+            className="search-popover__control-select"
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value as SortOrder)}
+          >
+            {sortOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+          <select
+            className="search-popover__control-select"
+            value={activeYearFilter}
+            onChange={(e) => setActiveYearFilter(e.target.value as YearFilter)}
+          >
+            {yearFilterOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
       </div>
       {loading && (
         <p className="search-popover__status">
@@ -231,7 +288,7 @@ export function SearchPopover({
           </p>
         )}
       <div className="search-results">
-        {results.map((result) => (
+        {displayedResults.map((result) => (
           <button
             key={`${result.provider}-${result.id}`}
             type="button"
