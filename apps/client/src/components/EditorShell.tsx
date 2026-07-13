@@ -4,7 +4,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { parseUploadedDocument } from '../api/documents';
 import { useAuth } from '../context/AuthContext';
 import { CitationToken } from '../editor/CitationToken';
-import { InlineTextStyle, StyledHeading, StyledParagraph, Underline } from '../editor/formattingExtensions';
+import { FontStyle, InlineTextStyle, StyledBold, StyledHeading, StyledItalic, StyledParagraph, Underline } from '../editor/formattingExtensions';
 import { useDocument } from '../context/DocumentContext';
 import { exportDocument } from '../lib/exportDocument';
 import { formatInlineCitation } from '../lib/citationFormatting';
@@ -45,9 +45,14 @@ export function EditorShell() {
       StarterKit.configure({
         heading: false,
         paragraph: false,
+        bold: false,
+        italic: false,
       }),
       StyledParagraph,
       StyledHeading,
+      StyledBold,
+      StyledItalic,
+      FontStyle,
       InlineTextStyle,
       Underline,
       CitationToken,
