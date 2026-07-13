@@ -256,13 +256,13 @@ export function SearchPopover({
         <div className="search-popover__citation">
           <div className="search-popover__citation-header">
             <span>Generated Bibliography</span>
-            {citation && citation.filterBuckets.length > 0 && (
+            {citation && citation.filterBuckets?.length > 0 && (
               <select
                 className="search-popover__year-filter"
                 value={yearFilter}
                 onChange={(e) => setYearFilter(e.target.value)}
               >
-                {citation.filterBuckets.map((bucket) => (
+                {citation.filterBuckets?.map((bucket) => (
                   <option key={bucket.label} value={bucket.label}>
                     {bucket.label}
                   </option>
@@ -278,7 +278,7 @@ export function SearchPopover({
               {citationError}
             </p>
           )}
-          {!citationLoading && !citationError && citation && (
+          {!citationLoading && !citationError && citation && citation.bibliographyString && (
             <div
               className="search-popover__bibliography"
               dangerouslySetInnerHTML={{
