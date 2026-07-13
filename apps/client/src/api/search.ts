@@ -1,4 +1,4 @@
-import type { SearchResponse } from '../types';
+import type { CitationResponse, SearchResponse } from '../types';
 import { apiRequest } from './client';
 
 export class SearchApiError extends Error {
@@ -39,4 +39,46 @@ export async function searchAcademicSources(
   }
 
   return response.json() as Promise<SearchResponse>;
+}
+
+export class CitationApiError extends Error {
+  status: number;
+  details?: string;
+
+  constructor(status: number, message: string, details?: string) {
+    super(message);
+    this.name = 'CitationApiError';
+    this.status = status;
+    this.details = details;
+  }
+}
+
+export async function generateCitation(
+  query: string,
+  style: string,
+  yearFilter: string,
+  signal?: AbortSignal,
+  getIdToken?: () => Promise<string | null>,
+): Promise<CitationResponse> {
+  const response = await apiRequest('/api/search/citation', {
+    method: 'POST',
+    signal,
+    getIdToken,
+    body: JSON.stringify({ query: query.trim(), style, yearFilter }),
+  });
+  if (!response.ok) {
+    let details: string | undefined;
+    try {
+      const body = (await response.json()) as { error?: string };
+      details = body.error;
+    } catch {
+      details = undefined;
+    }
+    throw new CitationApiError(
+      response.status,
+      details ?? `Citation generation failed with status ${response.status}`,
+      details,
+    );
+  }
+  return response.json() as Promise<CitationResponse>;
 }

@@ -1,13 +1,27 @@
-import { useEffect, useState } from 'react';
-import { searchAcademicSources, SearchApiError } from '../api/search';
-import { useAuth } from '../context/AuthContext';
-import type { AcademicSource } from '../types';
+import { useEffect, useState } from "react";
+
+import {
+  searchAcademicSources,
+  SearchApiError,
+  generateCitation,
+  CitationApiError,
+} from "../api/search";
+
+import { useAuth } from "../context/AuthContext";
+
+import { useDocument } from "../context/DocumentContext";
+
+import type { AcademicSource, CitationResponse } from "../types";
 
 type SearchPopoverProps = {
   query: string;
+
   visible: boolean;
+
   top: number;
+
   left: number;
+
   onInsert: (source: AcademicSource) => void;
 };
 
@@ -16,19 +30,31 @@ const MIN_SEARCH_QUERY_LENGTH = 5;
 function getSearchErrorMessage(error: unknown, isSignedIn: boolean): string {
   if (error instanceof SearchApiError) {
     if (error.status === 401) {
-      return 'Please sign in to search academic sources.';
+      return "Please sign in to search academic sources.";
     }
-
     if (error.status === 402) {
-      return error.details ?? 'Free search quota exceeded. Upgrade to continue academic source lookups.';
+      return (
+        error.details ??
+        "Free search quota exceeded. Upgrade to continue academic source lookups."
+      );
     }
-
     if (error.details) {
       return error.details;
     }
   }
+  return isSignedIn
+    ? "Search is temporarily unavailable."
+    : "Sign in to search academic sources.";
+}
 
-  return isSignedIn ? 'Search is temporarily unavailable.' : 'Sign in to search academic sources.';
+function getCitationErrorMessage(error: unknown): string {
+  if (error instanceof CitationApiError) {
+    if (error.details) {
+      return error.details;
+    }
+    return `Citation generation failed (${error.status}).`;
+  }
+  return "Unable to generate citation right now.";
 }
 
 export function SearchPopover({
@@ -39,31 +65,61 @@ export function SearchPopover({
   onInsert,
 }: SearchPopoverProps) {
   const { getIdToken, user } = useAuth();
+
+  const { style } = useDocument();
+
   const [results, setResults] = useState<AcademicSource[]>([]);
+
   const [loading, setLoading] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
+
+  const [citation, setCitation] = useState<CitationResponse | null>(null);
+
+  const [yearFilter, setYearFilter] = useState<string>("");
+
+  const [citationLoading, setCitationLoading] = useState(false);
+
+  const [citationError, setCitationError] = useState<string | null>(null);
 
   useEffect(() => {
     const normalizedQuery = query.trim();
 
     if (!visible || normalizedQuery.length < MIN_SEARCH_QUERY_LENGTH) {
       setResults([]);
+
       setError(null);
+
       setLoading(false);
+
+      setCitation(null);
+
+      setYearFilter("");
+
+      setCitationError(null);
+
       return;
     }
 
     const controller = new AbortController();
+
     const timeoutId = window.setTimeout(async () => {
       setLoading(true);
+
       setError(null);
 
       try {
-        const response = await searchAcademicSources(query, controller.signal, getIdToken);
+        const response = await searchAcademicSources(
+          query,
+          controller.signal,
+          getIdToken,
+        );
+
         setResults(response.results);
-      } catch (error) {
+      } catch (err) {
         if (!controller.signal.aborted) {
-          setError(getSearchErrorMessage(error, Boolean(user)));
+          setError(getSearchErrorMessage(err, Boolean(user)));
+
           setResults([]);
         }
       } finally {
@@ -75,9 +131,68 @@ export function SearchPopover({
 
     return () => {
       controller.abort();
+
       window.clearTimeout(timeoutId);
     };
   }, [getIdToken, query, user, visible]);
+
+  useEffect(() => {
+    const normalizedQuery = query.trim();
+
+    if (!visible || normalizedQuery.length < MIN_SEARCH_QUERY_LENGTH) {
+      setCitation(null);
+
+      setYearFilter("");
+
+      setCitationError(null);
+
+      return;
+    }
+
+    const controller = new AbortController();
+
+    let isCancelled = false;
+
+    async function fetchCitation() {
+      setCitationLoading(true);
+
+      setCitationError(null);
+
+      try {
+        const response = await generateCitation(
+          normalizedQuery,
+          style,
+          yearFilter,
+          controller.signal,
+          getIdToken,
+        );
+
+        if (!isCancelled) {
+          setCitation(response);
+        }
+      } catch (err) {
+        if (!isCancelled) {
+          setCitationError(getCitationErrorMessage(err));
+
+          setCitation(null);
+        }
+      } finally {
+        if (!isCancelled) {
+          setCitationLoading(false);
+        }
+      }
+    }
+
+    const timeoutId = window.setTimeout(fetchCitation, 350);
+
+    return () => {
+      controller.abort();
+
+      window.clearTimeout(timeoutId);
+
+      isCancelled = true;
+    };
+  }, [getIdToken, query, style, yearFilter, visible]);
 
   if (!visible) {
     return null;
@@ -86,22 +201,35 @@ export function SearchPopover({
   const normalizedQuery = query.trim();
 
   return (
-    <div className="search-popover" style={{ top, left }}>
+    <div
+      className="search-popover"
+      style={{
+        top,
+        left,
+      }}
+    >
       <div className="search-popover__header">
         <span>Related academic sources</span>
         <small>Searching public academic sources</small>
       </div>
-
       {loading && (
         <p className="search-popover__status">
           Searching Semantic Scholar, Crossref, PubMed, and Google Scholar...
         </p>
       )}
-      {error && <p className="search-popover__status search-popover__status--error">{error}</p>}
-      {!loading && !error && results.length === 0 && normalizedQuery.length >= MIN_SEARCH_QUERY_LENGTH && (
-        <p className="search-popover__status">No related sources found for this selection.</p>
+      {error && (
+        <p className="search-popover__status search-popover__status--error">
+          {error}
+        </p>
       )}
-
+      {!loading &&
+        !error &&
+        results.length === 0 &&
+        normalizedQuery.length >= MIN_SEARCH_QUERY_LENGTH && (
+          <p className="search-popover__status">
+            No related sources found for this selection.
+          </p>
+        )}
       <div className="search-results">
         {results.map((result) => (
           <button
@@ -113,17 +241,53 @@ export function SearchPopover({
           >
             <strong>{result.title}</strong>
             <span>
-              {(result.authors[0]?.family ??
+              {result.authors[0]?.family ??
                 result.authors[0]?.literal ??
                 result.authors[0]?.given ??
-                'Unknown author')}
-              {result.year ? ` • ${result.year}` : ''}
-              {result.containerTitle ? ` • ${result.containerTitle}` : ''}
+                "Unknown author"}
+              {result.year ? ` • ${result.year}` : ""}
+              {result.containerTitle ? ` • ${result.containerTitle}` : ""}
             </span>
             <small>{result.provider}</small>
           </button>
         ))}
       </div>
+      {normalizedQuery.length >= MIN_SEARCH_QUERY_LENGTH && (
+        <div className="search-popover__citation">
+          <div className="search-popover__citation-header">
+            <span>Generated Bibliography</span>
+            {citation && citation.filterBuckets.length > 0 && (
+              <select
+                className="search-popover__year-filter"
+                value={yearFilter}
+                onChange={(e) => setYearFilter(e.target.value)}
+              >
+                {citation.filterBuckets.map((bucket) => (
+                  <option key={bucket.label} value={bucket.label}>
+                    {bucket.label}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+          {citationLoading && (
+            <p className="search-popover__status">Generating bibliography...</p>
+          )}
+          {citationError && (
+            <p className="search-popover__status search-popover__status--error">
+              {citationError}
+            </p>
+          )}
+          {!citationLoading && !citationError && citation && (
+            <div
+              className="search-popover__bibliography"
+              dangerouslySetInnerHTML={{
+                __html: citation.bibliographyString,
+              }}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }

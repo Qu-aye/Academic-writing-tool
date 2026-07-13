@@ -38,6 +38,18 @@ export type CitationEntry = {
   insertedAt: number;
 };
 
+export type CitationFilterBucket = {
+  label: string;
+  minYear: number;
+  maxYear: number;
+};
+
+export type CitationResponse = {
+  bibliographyString: string;
+  filterBuckets: CitationFilterBucket[];
+  sourceCount: number;
+};
+
 export type WorkspaceRole = 'owner' | 'editor' | 'viewer';
 
 export type WorkspaceMember = {

@@ -747,6 +747,54 @@ button {
   color: rgba(247, 255, 249, 0.76);
 }
 
+.search-popover__citation {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(247, 255, 249, 0.12);
+}
+
+.search-popover__citation-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.search-popover__citation-header span {
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.search-popover__year-filter {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(247, 255, 249, 0.18);
+  background: rgba(247, 255, 249, 0.08);
+  color: var(--surface);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.search-popover__year-filter:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.search-popover__bibliography {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 6px;
+  background: rgba(247, 255, 249, 0.06);
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: rgba(247, 255, 249, 0.88);
+}
+
+.search-popover__bibliography i {
+  color: rgba(247, 255, 249, 0.64);
+}
+
 .bibliography-panel {
   position: sticky;
   top: 24px;

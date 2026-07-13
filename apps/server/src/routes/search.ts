@@ -3,10 +3,12 @@ import rateLimit from 'express-rate-limit';
 import { requireAuth } from '../middleware/auth.js';
 import { requireSearchEntitlement } from '../middleware/searchEntitlement.js';
 import { searchAcademicSources } from '../services/searchProviders.js';
+import { generateCitation } from '../services/citationGeneration.js';
 
 export const searchRouter = Router();
 
 const SEARCH_REQUESTS_PER_MINUTE = Number(process.env.SEARCH_REQUESTS_PER_MINUTE ?? 30);
+
 const searchRateLimiter = rateLimit({
   windowMs: 60_000,
   limit: SEARCH_REQUESTS_PER_MINUTE,
@@ -19,25 +21,41 @@ const searchRateLimiter = rateLimit({
 
 searchRouter.get('/', searchRateLimiter, requireAuth, requireSearchEntitlement, async (request, response) => {
   const query = typeof request.query.q === 'string' ? request.query.q.trim() : '';
-
   if (query.length < 5) {
-    response.status(400).json({
-      error: 'Query must be at least 5 characters long.',
-    });
+    response.status(400).json({ error: 'Query must be at least 5 characters long.' });
     return;
   }
-
   try {
     const results = await searchAcademicSources(query);
-
-    response.json({
-      query,
-      results,
-    });
+    response.json({ query, results });
   } catch (error) {
     console.error('Academic search failed', error);
-    response.status(500).json({
-      error: 'Unable to search academic sources right now.',
-    });
+    response.status(500).json({ error: 'Unable to search academic sources right now.' });
   }
 });
+
+searchRouter.post(
+  '/citation',
+  searchRateLimiter,
+  requireAuth,
+  requireSearchEntitlement,
+  async (request, response) => {
+    const query = typeof request.body?.query === 'string' ? request.body.query.trim() : '';
+    const style = typeof request.body?.style === 'string' ? request.body.style : 'harvard-ctr';
+    const yearFilter = typeof request.body?.yearFilter === 'string' ? request.body.yearFilter : undefined;
+
+    if (query.length < 5) {
+      response.status(400).json({ error: 'Query must be at least 5 characters long.' });
+      return;
+    }
+
+    try {
+      const results = await searchAcademicSources(query);
+      const citation = generateCitation(results, style, yearFilter);
+      response.json({ query, ...citation });
+    } catch (error) {
+      console.error('Citation generation failed', error);
+      response.status(500).json({ error: 'Unable to generate citation right now.' });
+    }
+  },
+);
