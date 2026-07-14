@@ -697,8 +697,24 @@ button {
   gap: 12px;
   margin-bottom: 12px;
   flex-shrink: 0;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
 }
 
+.search-popover__drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: rgba(var(--ink-rgb), 0.55);
+  font-size: 1.1rem;
+  line-height: 1;
+  letter-spacing: -2px;
+  cursor: grab;
+  flex-shrink: 0;
+}
 .search-popover__header-text {
   display: flex;
   flex-direction: column;
@@ -973,6 +989,11 @@ button {
     right: 12px;
     left: 12px !important;
     width: auto;
+  }
+  .search-popover__header {
+    cursor: default;
+    touch-action: auto;
+    user-select: auto;
   }
 }
 
