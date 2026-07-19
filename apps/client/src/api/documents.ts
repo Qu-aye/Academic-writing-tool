@@ -72,3 +72,53 @@ export async function listDocuments(options: AuthOptions & { workspaceId?: strin
 
   return response.json();
 }
+
+export async function getDocument(
+  documentId: string,
+  options: AuthOptions = {},
+) {
+  const response = await apiRequest(`/api/documents/${encodeURIComponent(documentId)}`, {
+    getIdToken: options.getIdToken,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Document fetch failed with status ${response.status}`);
+  }
+
+  return response.json();
+}
+
+export async function updateDocument(
+  documentId: string,
+  payload: Partial<SavedDocumentPayload>,
+  options: AuthOptions = {},
+) {
+  const response = await apiRequest(`/api/documents/${encodeURIComponent(documentId)}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+    getIdToken: options.getIdToken,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Document update failed with status ${response.status}`);
+  }
+
+  return response.json();
+}
+
+export async function deleteDocument(
+  documentId: string,
+  options: AuthOptions = {},
+) {
+  const response = await apiRequest(`/api/documents/${encodeURIComponent(documentId)}`, {
+    method: 'DELETE',
+    getIdToken: options.getIdToken,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Document delete failed with status ${response.status}`);
+  }
+}

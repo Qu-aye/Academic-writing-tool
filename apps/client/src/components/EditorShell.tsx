@@ -1,7 +1,7 @@
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { parseUploadedDocument } from '../api/documents';
+import { parseUploadedDocument, saveDocumentState, getDocument, updateDocument, listDocuments } from '../api/documents';
 import { useAuth } from '../context/AuthContext';
 import { CitationToken } from '../editor/CitationToken';
 import { FontStyle, InlineTextStyle, StyledBold, StyledHeading, StyledItalic, StyledParagraph, Underline } from '../editor/formattingExtensions';
@@ -27,6 +27,12 @@ export function EditorShell() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [exportFormat, setExportFormat] = useState<ExportFormat>('docx');
   const [documentName, setDocumentName] = useState('research-draft');
+  const [documentId, setDocumentId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const autoSaveTimerRef = useRef<number | null>(null);
+  const isSavingRef = useRef(false);
   const [popoverState, setPopoverState] = useState<PopoverState>({
     visible: false,
     top: 0,
@@ -90,6 +96,8 @@ export function EditorShell() {
       }
     },
   });
+
+  const currentEditor = editor!;
 
   useEffect(() => {
     if (!editor) {
@@ -157,6 +165,11 @@ export function EditorShell() {
     editor.view.dispatch(transaction);
   }, [clearVersion, editor]);
 
+  useEffect(() => { if (!editor) { return; } const handleUpdate = () => { setHasUnsavedChanges(true); }; editor.on('update', handleUpdate); return () => { editor.off('update', handleUpdate); }; }, [editor]);
+  useEffect(() => { if (!editor || !user) { return; } let cancelled = false; async function loadRecentDocument() { try { const result = await listDocuments({ getIdToken }); const documents = (result as { documents: Array<{ _id: string; title: string; bodyHtml: string; citationStyle: string }> }).documents; if (cancelled) { return; } if (documents.length > 0) { const recent = documents[0]; setDocumentId(recent._id); setDocumentName(recent.title); currentEditor.commands.setContent(recent.bodyHtml); setLastSaved(new Date()); setHasUnsavedChanges(false); } } catch (error) { if (!cancelled) { console.error('Failed to load recent document:', error); } } } loadRecentDocument(); return () => { cancelled = true; }; }, [editor, user, getIdToken]);
+  useEffect(() => { if (!editor || !user) { return; } if (autoSaveTimerRef.current) { clearInterval(autoSaveTimerRef.current); } autoSaveTimerRef.current = window.setInterval(() => { if (hasUnsavedChanges && !isSavingRef.current && editor) { performSave(); } }, 30000); return () => { if (autoSaveTimerRef.current) { clearInterval(autoSaveTimerRef.current); autoSaveTimerRef.current = null; } }; }, [hasUnsavedChanges, editor, user]);
+  const performSave = async () => { if (!editor || isSavingRef.current) { return; } isSavingRef.current = true; setIsSaving(true); try { const html = editor.getHTML(); const payload = { title: documentName, bodyHtml: html, citationStyle: style, citations: bibliography.map((entry) => entry.source), }; let result; if (documentId) { result = await updateDocument(documentId, payload, { getIdToken }); } else { result = await saveDocumentState(payload, { getIdToken }); const doc = (result as { document: { _id: string } }).document; if (doc._id) { setDocumentId(doc._id); } } setLastSaved(new Date()); setHasUnsavedChanges(false); setStatusMessage('Document saved.'); } catch (error) { setStatusMessage(error instanceof Error ? error.message : 'Save failed.'); } finally { isSavingRef.current = false; setIsSaving(false); } };
+  const handleSave = async () => { await performSave(); };
   const insertCitation = (source: AcademicSource) => {
     if (!editor || !selectionRangeRef.current) {
       return;
@@ -240,8 +253,9 @@ export function EditorShell() {
 
     try {
       const parsedDocument = await parseUploadedDocument(file, { getIdToken });
-      editor.commands.setContent(parsedDocument.html);
+      editor!.commands.setContent(parsedDocument.html);
       setDocumentName(parsedDocument.fileName);
+      setDocumentId(null);
       setStatusMessage(`Imported ${parsedDocument.fileName} (${parsedDocument.fileType.toUpperCase()}).`);
     } catch (error) {
       setStatusMessage(
@@ -291,6 +305,9 @@ export function EditorShell() {
       '<p>Start writing, paste a draft, or upload a text document. Select any sentence or paragraph to find supporting research and insert citations.</p>',
     );
     setDocumentName('research-draft');
+    setDocumentId(null);
+    setLastSaved(null);
+    setHasUnsavedChanges(false);
     setStatusMessage('Draft cleared.');
   };
 
@@ -348,6 +365,19 @@ export function EditorShell() {
           >
             Clear draft
           </button>
+          <button
+            type="button"
+            className="ghost-button"
+            disabled={isSaving || !hasUnsavedChanges}
+            onClick={handleSave}
+          >
+            {isSaving ? 'Saving...' : hasUnsavedChanges ? 'Save Now' : 'Saved'}
+          </button>
+          {lastSaved && (
+            <span className="save-status">
+              {hasUnsavedChanges ? '● Unsaved changes' : `✓ Saved ${lastSaved.toLocaleTimeString()}`}
+            </span>
+          )}
         </div>
       </div>
 

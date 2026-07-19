@@ -21,8 +21,10 @@ const userSchema = new Schema(
       default: 'free',
       required: true,
     },
-    stripeCustomerId: { type: String, index: true },
-    stripeSubscriptionId: { type: String, index: true },
+    paystackCustomerId: { type: String, index: true },
+    paystackSubscriptionId: { type: String, index: true },
+    searchCount: { type: Number, default: 0 },
+    searchCountResetAt: { type: Date },
     subscriptionStatus: {
       type: String,
       enum: ['active', 'trialing', 'past_due', 'canceled', 'incomplete', 'unpaid', 'none'],

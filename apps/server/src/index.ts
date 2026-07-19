@@ -7,8 +7,9 @@ import { requireAuth } from './middleware/auth.js';
 import { contactRouter } from './routes/contact.js';
 import { documentsRouter } from './routes/documents.js';
 import { searchRouter } from './routes/search.js';
-import { stripeWebhooksRouter } from './routes/stripeWebhooks.js';
+import { paystackWebhooksRouter } from './routes/paystackWebhooks.js';
 import { workspacesRouter } from './routes/workspaces.js';
+import { usersRouter } from './routes/users.js';
 
 const app = express();
 const port = Number(process.env.PORT ?? 4000);
@@ -46,7 +47,7 @@ app.use(
   }),
 );
 
-app.use('/api/webhooks/stripe', stripeWebhooksRouter);
+app.use('/api/webhooks/paystack', paystackWebhooksRouter);
 app.use(express.json());
 
 app.get('/api/health', (_request, response) => {
@@ -56,6 +57,7 @@ app.get('/api/health', (_request, response) => {
 app.use('/api/contact', contactRouter);
 app.use('/api/documents', requireAuth, documentsRouter);
 app.use('/api/workspaces', requireAuth, workspacesRouter);
+app.use('/api/users', requireAuth, usersRouter);
 app.use('/api/search', searchRouter);
 
 app.listen(port, () => {

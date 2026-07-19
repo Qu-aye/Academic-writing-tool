@@ -1,8 +1,53 @@
 import crypto from 'node:crypto';
 import { Router } from 'express';
+import { requireAuth, getAuth } from '../middleware/auth.js';
 import { UserModel, type SubscriptionTier } from '../models/User.js';
 
-export const stripeWebhooksRouter = Router();
+export const paystackWebhooksRouter = Router();
+
+// Checkout endpoint to create payment link
+paystackWebhooksRouter.post('/checkout', requireAuth, async (request, response) => {
+  const { tier } = request.body as { tier: 'premium' | 'team' };
+  if (!tier || (tier !== 'premium' && tier !== 'team')) {
+    response.status(400).json({ error: 'Invalid tier' });
+    return;
+  }
+
+  const amount = tier === 'premium' ? 1999 : 4999; // in kobo (Nigerian currency) - 20.99 and 49.99
+
+  try {
+    const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY;
+    if (!paystackSecretKey) {
+      throw new Error('Paystack secret key not configured');
+    }
+
+    const auth = getAuth(request);
+    const paystackResponse = await fetch('https://api.paystack.co/transaction/initialize', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${paystackSecretKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: auth.email || '',
+        amount,
+        metadata: {
+          firebaseUid: auth.uid,
+          tier,
+        },
+      }),
+    });
+
+    const data = await paystackResponse.json();
+    if (!data.status) {
+      throw new Error(data.message || 'Failed to initialize payment');
+    }
+
+    response.json({ authorizationUrl: data.data.authorization_url });
+  } catch (error) {
+    response.status(500).json({ error: error instanceof Error ? error.message : 'Payment initialization failed' });
+  }
+});
 
 function getTier(metadata: any): SubscriptionTier {
   const metadataTier = metadata?.tier;
@@ -14,9 +59,9 @@ function getTier(metadata: any): SubscriptionTier {
   return 'premium';
 }
 
-// IMPORTANT: Paystack sends regular JSON objects, NOT raw text payloads.
+// Paystack sends regular JSON objects, NOT raw text payloads.
 // Ensure your app uses express.json() for this route, NOT express.raw()
-stripeWebhooksRouter.post('/', async (request, response) => {
+paystackWebhooksRouter.post('/', async (request, response) => {
   // 1. Validate the Paystack Webhook Signature
   const hash = crypto
     .createHmac('sha512', process.env.PAYSTACK_SECRET_KEY ?? '')
@@ -43,14 +88,12 @@ stripeWebhooksRouter.post('/', async (request, response) => {
     const paystackSubscriptionCode = data.plan?.plan_code ?? 'one_time_charge';
 
     await UserModel.findOneAndUpdate(
-      firebaseUid ? { firebaseUid } : { stripeCustomerId: paystackCustomerCode },
+      firebaseUid ? { firebaseUid } : { paystackCustomerId: paystackCustomerCode },
       {
         $set: {
           firebaseUid,
-          // Mapping Paystack fields directly to your existing database keys 
-          // so you don't have to rewrite your entire User schema right now
-          stripeCustomerId: paystackCustomerCode,
-          stripeSubscriptionId: paystackSubscriptionCode,
+          paystackCustomerId: paystackCustomerCode,
+          paystackSubscriptionId: paystackSubscriptionCode,
           subscriptionTier: getTier(metadata),
           subscriptionStatus: 'active',
         },
@@ -64,7 +107,7 @@ stripeWebhooksRouter.post('/', async (request, response) => {
     const data = event.data;
 
     await UserModel.findOneAndUpdate(
-      { stripeSubscriptionId: data.subscription_code },
+      { paystackSubscriptionId: data.subscription_code },
       {
         $set: {
           subscriptionTier: 'free',

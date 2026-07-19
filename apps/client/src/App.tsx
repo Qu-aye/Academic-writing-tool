@@ -9,7 +9,7 @@ import { DocumentProvider, useDocument } from './context/DocumentContext';
 import { useTheme } from './context/ThemeContext';
 import { ErrorBoundary } from "react-error-boundary";
 
-type Route = '/' | '/features' | '/about' | '/contact' | '/dashboard' | '/dashboard/editor';
+type Route = '/' | '/features' | '/about' | '/contact' | '/dashboard' | '/dashboard/editor' | '/subscription';
 
 type NavItem = {
   label: string;
@@ -25,6 +25,7 @@ const marketingNav: NavItem[] = [
 const dashboardNav: NavItem[] = [
   { label: 'Editor', path: '/dashboard/editor' },
   { label: 'Sources', path: '/dashboard' },
+  { label: 'Subscription', path: '/subscription' },
 ];
 
 function normalizePath(pathname: string): Route {
@@ -34,7 +35,8 @@ function normalizePath(pathname: string): Route {
     pathname === '/about' ||
     pathname === '/contact' ||
     pathname === '/dashboard' ||
-    pathname === '/dashboard/editor'
+    pathname === '/dashboard/editor' ||
+    pathname === '/subscription'
   ) {
     return pathname;
   }
@@ -316,6 +318,34 @@ function EditorWorkspace() {
 
 function SourcesOverview({ onNavigate }: { onNavigate: (path: Route) => void }) {
   const { bibliography } = useDocument();
+  const { user } = useAuth();
+  const [documents, setDocuments] = useState<Array<{ id: string; title: string; updatedAt: string }>>([]);
+  const [loadingDocuments, setLoadingDocuments] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    setLoadingDocuments(true);
+    const controller = new AbortController();
+    const load = async () => {
+      try {
+        const token = await user.getIdToken();
+        const response = await fetch('/api/documents', {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        });
+        if (!response.ok) return;
+        const data = (await response.json()) as { documents: Array<{ id: string; title: string; updatedAt: string }> };
+        setDocuments(data.documents);
+      } catch {
+        // ignore
+      } finally {
+        setLoadingDocuments(false);
+      }
+    };
+    load();
+    return () => controller.abort();
+  }, [user]);
+
   const sourceCount = bibliography.length;
 
   return (
@@ -323,9 +353,27 @@ function SourcesOverview({ onNavigate }: { onNavigate: (path: Route) => void }) 
       <span className="eyebrow">Dashboard</span>
       <h1>Source command center</h1>
       <p>
-        You have {sourceCount} {sourceCount === 1 ? 'source' : 'sources'} in the current draft.
-        Open the editor to search, cite, import documents, and export the final file.
+        You have {sourceCount} {sourceCount === 1 ? 'source' : 'sources'} in the current draft. Open the editor to search, cite, import documents, and export the final file.
       </p>
+      <div className="document-list">
+        <h2>Your documents</h2>
+        {loadingDocuments ? (
+          <p>Loading documents...</p>
+        ) : documents.length === 0 ? (
+          <p>No documents yet. Start writing to create one.</p>
+        ) : (
+          <ul>
+            {documents.map((doc) => (
+              <li key={doc.id}>
+                <button className="document-list__item" type="button" onClick={() => onNavigate('/dashboard/editor')}>
+                  <span>{doc.title || 'Untitled document'}</span>
+                  <small>{new Date(doc.updatedAt).toLocaleDateString()}</small>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
       <button className="primary-link primary-link--button" type="button" onClick={() => onNavigate('/dashboard/editor')}>
         Open editor
       </button>
@@ -365,7 +413,7 @@ function DashboardShell({
             </AppLink>
           ))}
         </nav>
-
+        <SearchQuotaDisplay />
         <div className="sidebar__footer">
           <button className="sidebar-link theme-toggle--sidebar" type="button" onClick={toggleTheme} aria-label="Toggle dark mode">
             <span>T</span> Theme
@@ -416,6 +464,12 @@ function RoutedApp() {
             <EditorWorkspace />
           </DashboardShell>
         );
+      case '/subscription':
+        return (
+          <DashboardShell currentRoute={route} onNavigate={navigate}>
+            <SubscriptionPage onNavigate={navigate} />
+          </DashboardShell>
+        );
       case '/':
       default:
         return <LandingPage onNavigate={navigate} />;
@@ -425,13 +479,110 @@ function RoutedApp() {
   return <div className={isDashboard ? 'app app--dashboard' : 'app'}>{page}</div>;
 }
 
-const App = () => {
+function SubscriptionPage({ onNavigate }: { onNavigate: (path: Route) => void }) {
+  const { user, profile, signInWithGoogle } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleCheckout = async (tier: 'premium' | 'team') => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/webhooks/paystack/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tier }),
+      });
+      if (!response.ok) {
+        throw new Error(`Checkout failed with status ${response.status}`);
+      }
+      const { authorizationUrl } = await response.json();
+      window.location.href = authorizationUrl;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to start checkout.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!user) {
+    return (
+      <DashboardShell currentRoute="/subscription" onNavigate={onNavigate}>
+        <section className="dashboard-panel">
+          <span className="eyebrow">Subscription</span>
+          <h1>Sign in to manage your plan</h1>
+          <button className="primary-link primary-link--button" type="button" onClick={signInWithGoogle}>
+            Sign in with Google
+          </button>
+        </section>
+      </DashboardShell>
+    );
+  }
 
   return (
-    <ErrorBoundary
-      FallbackComponent={() => <div>Something went wrong</div>}
-    >
+    <DashboardShell currentRoute="/subscription" onNavigate={onNavigate}>
+      <section className="dashboard-panel">
+        <span className="eyebrow">Subscription</span>
+        <h1>Choose your plan</h1>
+        {profile && (
+          <p>
+            Current plan: <strong>{profile.subscriptionTier}</strong> ({profile.subscriptionStatus})
+          </p>
+        )}
+        <div className="subscription-options">
+          <button className="primary-link primary-link--button" type="button" onClick={() => handleCheckout('premium')} disabled={loading}>
+            Upgrade to Premium
+          </button>
+          <button className="primary-link primary-link--button" type="button" onClick={() => handleCheckout('team')} disabled={loading}>
+            Upgrade to Team
+          </button>
+        </div>
+        {error && <p className="form-error">{error}</p>}
+      </section>
+    </DashboardShell>
+  );
+}
+
+function SearchQuotaDisplay() {
+  const { profile } = useAuth();
+  const tier = profile?.subscriptionTier ?? 'free';
+  const remaining = profile?.searchCount ?? 0;
+  const resetAt = profile?.searchCountResetAt ? new Date(profile.searchCountResetAt).toLocaleDateString() : '';
+
+  if (tier === 'premium' || tier === 'team') {
+    return (
+      <div className="sidebar-quota sidebar-quota--unlimited">
+        <strong>Unlimited searches</strong>
+        <small>{tier} plan</small>
+      </div>
+    );
+  }
+
+  return (
+    <div className="sidebar-quota">
+      <strong>{remaining} / 10 searches</strong>
+      <small>Resets {resetAt}</small>
+    </div>
+  );
+}
+
+function ErrorFallback({ error, resetErrorBoundary }: { error: unknown; resetErrorBoundary: () => void }) {
+  const message = error instanceof Error ? error.message : 'An unexpected error occurred';
+  return (
+    <div className="error-boundary">
+      <h1>Something went wrong</h1>
+      <pre>{message}</pre>
+      <button className="primary-link primary-link--button" type="button" onClick={resetErrorBoundary}>
+        Try again
+      </button>
+    </div>
+  );
+}
+
+const App = () => {
+  const [loading, setLoading] = useState(false);
+  return (
+    <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => setLoading(false)}>
       <AuthProvider>
         <DocumentProvider>
           <RoutedApp />

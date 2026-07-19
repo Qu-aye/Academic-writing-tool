@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 import { firebaseAuth } from '../config/firebaseAdmin.js';
+import { ensureUser } from '../services/users.js';
 
 export type AuthenticatedUser = {
   uid: string;
@@ -22,11 +23,18 @@ export async function requireAuth(request: Request, response: Response, next: Ne
 
   try {
     const decodedToken = await firebaseAuth.verifyIdToken(token);
-    (request as AuthenticatedRequest).auth = {
+    const auth: AuthenticatedUser = {
       uid: decodedToken.uid,
       email: decodedToken.email,
       name: decodedToken.name,
     };
+    (request as AuthenticatedRequest).auth = auth;
+
+    // Sync Firebase user to MongoDB (creates user doc on first login)
+    await ensureUser(auth).catch(() => {
+      // Non-critical — don't block the request if user sync fails
+    });
+
     next();
   } catch {
     response.status(401).json({ error: 'Invalid or expired Firebase token.' });

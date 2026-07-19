@@ -58,3 +58,23 @@ export async function upsertWorkspaceMember(
 
   return response.json() as Promise<{ workspace: Workspace }>;
 }
+
+export async function removeWorkspaceMember(
+  workspaceId: string,
+  userId: string,
+  options: AuthOptions = {},
+) {
+  const response = await apiRequest(
+    `/api/workspaces/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(userId)}`,
+    {
+      method: 'DELETE',
+      getIdToken: options.getIdToken,
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`Workspace member removal failed with status ${response.status}`);
+  }
+
+  return response.json() as Promise<{ workspace: Workspace }>;
+}

@@ -9,8 +9,7 @@ MONGODB_URI=mongodb+srv://...
 MONGODB_DB_NAME=sewornaai
 FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
 CLIENT_ORIGIN=http://localhost:5173
-STRIPE_SECRET_KEY=sk_live_...
-STRIPE_WEBHOOK_SECRET=whsec_...
+PAYSTACK_SECRET_KEY=sk_live_...
 SMTP_HOST=smtp.example.com
 SMTP_PORT=587
 SMTP_USER=mailer@example.com
@@ -47,12 +46,12 @@ await saveDocumentState({ title, bodyHtml, citationStyle }, { getIdToken });
 
 Search and document upload already use this pattern. Workspace screens can use `listWorkspaces`, `createWorkspace`, and `upsertWorkspaceMember` from `apps/client/src/api/workspaces.ts`.
 
-## Stripe Webhook
+## Paystack Webhook
 
-Create a Stripe webhook endpoint pointing to:
+Create a Paystack webhook endpoint pointing to:
 
 ```text
-POST /api/webhooks/stripe
+POST /api/webhooks/paystack
 ```
 
 Send subscription metadata with:
